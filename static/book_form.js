@@ -83,7 +83,7 @@ async function updateBook(info = true) {
     if (resp.ok) {
         if (info) {
             alert('Book information updated successfully.');
-            window.location.reload();
+            window.location.href = `/books/manage?isbn=` + isbn;
         }
         return true
     } else {
@@ -104,6 +104,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     const itxLoanId = document.getElementById('itxLoanId')
     const btnReturnBook = document.getElementById('btnReturnBook');
     const btnSubmitForm = document.getElementById('btnSubmitForm"');
+
+    if (isbnInput.value == '0') {
+        mobileScan();
+    } else {
+        isbnInput.focus();
+    }
+
+    itxName.value = localStorage.getItem(nameKey);
+
     if (!itxBorrower.value) {
         btnReturnBook.style.display = 'none';
     } else {
@@ -137,12 +146,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     manageBookForm.addEventListener('submit', async function (e) {
         e.preventDefault();
     });
-
-    if (isbnInput.value == '0') {
-        mobileScan();
-    } else {
-        isbnInput.focus();
-    }
 });
 
 async function fetchBookInfo() {
@@ -201,7 +204,6 @@ async function mobileScan() {
     const ngrokUrl = "https://pdlab.iis.u-tokyo.ac.jp/labook";
 
     window.location.href = `${ngrokUrl}/scan/${shelfCode}`;
-
 }
 
 async function deleteBook() {

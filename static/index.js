@@ -5,7 +5,7 @@ let lockModeLocation = null;
 const musicRegister = new Audio('static/register.mp3');
 const musicNewEntry = new Audio('static/newentry.mp3');
 const musicAlert = new Audio('static/alert.mp3');
-const magicPrefix = 'http://labook.local/L/';
+const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/labook/L/';
 
 document.addEventListener('DOMContentLoaded', function () {
 

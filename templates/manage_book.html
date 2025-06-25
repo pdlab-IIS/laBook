@@ -25,8 +25,9 @@
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
             alt="No Image" style="max-height: min-content;">
         {% else %}
-        <img id="cover_preview" src="{{ url_for('static', filename='book-medical-solid.svg') }}" alt="No Image"
-            style="max-height: min-content;">
+        <img id="cover_preview"
+            src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-medical-solid.svg') }}"
+            alt="No Image" style="max-height: min-content;">
         {% endif %}
     </div>
     <button type="button" id="btnScanner" onclick="mobileScan()" {% if mode=="edit" %}style="display: none;" {% endif
