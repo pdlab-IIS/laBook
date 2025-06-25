@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>laBook[alpha-version] | Scan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='quagga.min.js') }}"></script>
+    <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='scanner.js' )}}"></script>
+    <link rel="icon" href="{{ url_for('static', filename='bdb-favicon.svg') }}" type="image/svg+xml" />
+    <!-- Font Awesome Free by @fontawesome 
+       Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ 
+       https://fontawesome.com/license/free -->
+</head>
+
+<body>
+    <button onclick="cancelScan()" class="back-btn">
+        <i class="fa-solid fa-left-long"></i>
+    </button>
+
+    <body>
+        <h2><i class="fa-solid fa-location-dot"></i> {{ location_code }}</h2>
+        <br>
+        <h1><i class="fa-solid fa-mobile-screen-button"></i> Scan Book</h1>
+        <br>
+        <h2>
+            <font color="green"><i class="fa-solid fa-circle-check"></i></font> <i class="fa-solid fa-barcode"></i>
+            978xxxxxxxxxx
+            <br>
+            <font color="red"><i class="fa-regular fa-rectangle-xmark"></i></font> <i class="fa-solid fa-barcode"></i>
+            192xxxxxxxxxx
+        </h2>
+        <div><canvas id="preview" class="camera"></canvas></div>
+        <input type="text" id="jan" readonly style="text-align: center;" placeholder="xxxxxxxxxxxxx"></input>
+        <input id="location_code" type="hidden" value="{{ location_code }}">
+    </body>

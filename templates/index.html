@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>laBook[alpha-version]</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='index.js') }}"></script>
+    <script src="{{ url_for('static', filename='general.js') }}"></script>
+    <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
+    <link rel="icon" href="{{ url_for('static', filename='bdb-favicon.svg') }}" type="image/svg+xml" />
+    <!-- Font Awesome Free by @fontawesome 
+       Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ 
+       https://fontawesome.com/license/free -->
+</head>
+
+<body>
+    <a href="./">
+        <h2><i class="fa-solid fa-database"></i>laBook</h2>
+    </a>
+    <input type="text" id="searchInput" style="min-width:400px" placeholder="ISBN / Title / Author / Publisher">
+    <button type="button" id="searchBtn"><i class="fas fa-search" aria-hidden="true"></i></button>
+    <button type="button" id="resetBtn"><i class="fas fa-undo" aria-hidden="true"></i></button>
+    <span id="spnLockMode">&emsp;</span>
+    <button type="button" id="addBookBtn"><i class="fas fa-book-medical" aria-hidden="true"></i> add book</button>
+    <button type="button" id="btnScanner"><i class="fa-solid fa-barcode"></i> scanner</button>
+    <span id="spnSpd"></span>
+    <table id="booksTable" class="book-list-table">
+        <thead>
+            <tr>
+                <th>Cover</th>
+                <th data-key="title">
+                    Title
+                    <span class="indicator"></span>
+                </th>
+                <th data-key="author">
+                    Author
+                    <span class="indicator"></span>
+                </th>
+                <th data-key="publisher">
+                    Publisher
+                    <span class="indicator"></span>
+                </th>
+                <th data-key="publication_date">
+                    Publish
+                    <span class="indicator"></span>
+                </th>
+                <th>Location</th>
+                <th data-key="status">
+                    Status
+                    <span class="indicator"></span>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Filled by index.js -->
+        </tbody>
+    </table>
+</body>
+
+</html>

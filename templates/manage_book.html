@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="icon" href="{{ url_for('static', filename='edit-favicon.svg') }}" type="image/svg+xml" />
+    <title>laBook[alpha-version] | {% if mode == "edit" %}Edit / Borrow{% else %}Add{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='general.js') }}"></script>
+    <script src="{{ url_for('static', filename='book_form.js') }}"></script>
+    <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
+    <!-- Font Awesome Free by @fontawesome 
+       Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ 
+       https://fontawesome.com/license/free -->
+</head>
+
+<body>
+    <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;"><i
+                class="fa-solid fa-left-long"></i></button>
+        {% if mode == "edit" %}<i class="fas fa-book"></i> Edit / Borrow{% else %}<i class="fas fa-book-medical"></i>
+        Add{% endif %}</h2>
+    <!-- {% if error %} <div style="color:red;">Error: {{ error }}</div>{% endif %}-->
+    <div style="margin-left: 12px; margin-top: 15px;">
+        {% if mode == "edit" %}
+        <img id="cover_preview"
+            src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
+            alt="No Image" style="max-height: min-content;">
+        {% else %}
+        <img id="cover_preview" src="{{ url_for('static', filename='book-medical-solid.svg') }}" alt="No Image"
+            style="max-height: min-content;">
+        {% endif %}
+    </div>
+    <button type="button" id="btnScanner" onclick="mobileScan()" {% if mode=="edit" %}style="display: none;" {% endif
+        %}><i class="fas fa-barcode" aria-hidden="true"></i> Scanner</button>
+    <form method="post" id="manageBookForm" data-mode="{{ mode }}">
+        <table class="book-form-table" aria-colspan="2">
+            <tr>
+                <td>
+                    <label for="isbn"><i class="fa-solid fa-barcode"></i> ISBN:</label>
+                </td>
+                <td>
+                    <input type="number" name="isbn" id="isbn" value="{{ book['isbn'] if book else '' }}" {% if
+                        mode=="edit" %}readonly{% endif %} required>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="title"><i class="fa-solid fa-book"></i> Title:</label></td>
+                <td><input type="text" name="title" id="title" value="{{ book['title'] if book else '' }}" required>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="author"><i class="fa-solid fa-user"></i> Author:</label></td>
+                <td><input type="text" name="author" id="author" value="{{ book['author'] if book else '' }}"></td>
+            </tr>
+            <tr>
+                <td><label for="publisher"><i class="fa-solid fa-building"></i> Publisher:</label></td>
+                <td><input type="text" name="publisher" id="publisher" value="{{ book['publisher'] if book else '' }}">
+                </td>
+            </tr>
+            <tr>
+                <td><label for="publication_date"><i class="fa-solid fa-calendar-days"></i> Publication:</label></td>
+                <td><input type="date" name="publication_date" id="publication_date"
+                        value="{{ book['publication_date'] if book else '' }}"></td>
+            </tr>
+            <tr style="display: none;">
+                <td><label for="cover_image_path">Img Path:</label></td>
+                <td><input type="text" name="cover_image_path" id="cover_image_path"
+                        value="{{ book['cover_image_path'] if book else '' }}"></td>
+            </tr>
+            <tr style="display: none;">
+                <td><label for="owner_id">Owner ID:</label></td>
+                <td><input type="number" name="owner_id" id="owner_id" value="{{ book['owner_id'] if book else '0' }}">
+                </td>
+            </tr>
+            <tr>
+                <td><label for="comment"><i class="fa-solid fa-comment-dots"></i> Comment:</label></td>
+                <td><input type="text" name="comment" id="comment" value="{{ book['comment'] if book else '' }}"></td>
+            </tr>
+            <tr style="display: none;">
+                <td><label for="shelf_id">Shelf id:</label></td>
+                <td><input type="number" name="shelf_id" id="shelf_id" value="{{ book['shelf_id'] if book else '' }}">
+                </td>
+            </tr>
+            <tr>
+                <td><label for="shelf_code"><i class="fa-solid fa-location-dot"></i> Shelf Code:</label></td>
+                <td><input type="text" name="shelf_code" id="shelf_code"
+                        value="{{ location_code_override if  location_code_override else '' }}"></td>
+            </tr>
+
+        </table>
+    </form>
+    <button type="button" id="btnDeleteBook" onclick="deleteBook()" class="delete-button" {% if mode !='edit'
+        %}style="display:none;" {% endif %}><i class="fas fa-trash" aria-hidden="true"></i> Delete Book</button>
+    <button type="button" id="btnFetchBookInfo" onclick="fetchBookInfo()"><span id=spnBtnFetchBookInfo><i
+                class="fas fa-globe" aria-hidden="true"></i></span> Get Online Biblio-info.</button>
+    <button type="button" id="btnSubmitForm" onclick="updateBook()"><i class="fas fa-save" aria-hidden="true"></i>
+        {% if mode
+        == 'edit' %}Update{% else %}Add{% endif %} Book</button>
+
+    <form id="formStatus">
+        <table class="book-form-table" {% if mode !='edit' %}style="display:none;" {% endif %} aria-colspan="2">
+            <tr>
+                <td>
+                    <label><i class="fa-solid fa-book-open-reader"></i> Borrowed by: </label>
+                </td>
+                <td>
+                    <input type="text" id="itxBorrower" value="{{ book['status'] if book and book['status'] else '' }}"
+                        disabled>
+                </td>
+            </tr>
+            <tr style="display: none;">
+                <td>
+                    <label>loan_id: </label>
+                </td>
+                <td>
+                    <input type="text" id="itxLoanId" value="" disabled>
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <label><i class="fa-solid fa-calendar-day"></i> From (UTC): </label>
+                </td>
+                <td>
+                    <input type="text" id="itxTime" value="" disabled>
+                </td>
+            </tr>
+        </table>
+    </form>
+    <form id="formUserName">
+        <table class="book-form-table" {% if mode !='edit' %}style="display:none;" {% endif %} aria-colspan="2">
+            <tr>
+                <td>
+                    <label><i class="fa-solid fa-signature"></i> Your nickname: </label>
+                </td>
+                <td>
+                    <input type="text" id="itxName" placeholder="ex. YAM, MARIKO, MIYA...">
+                </td>
+            </tr>
+        </table>
+    </form>
+    <button type="button" id="btnBorrowBook" onclick="borrowBook()" {% if mode !='edit' %}style="display:none;" {% endif
+        %}><i class="fas fa-book-reader" aria-hidden="true"></i> Borrow Book</button>
+    <button type="button" id="btnReturnBook" onclick="returnBook()" {% if mode !='edit' %}style="display:none;" {% endif
+        %}><i class="fa-solid fa-arrow-right-to-bracket"></i>
+        Return Book</button>
+</body>
+
+</html>

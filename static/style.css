@@ -1,0 +1,318 @@
+/* styles.css */
+
+/* -------------------------------------- */
+/* Basics                                 */
+/* -------------------------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+* {
+    --color-key-l1: #2d8b44;
+    --color-key-n0: #51bb6c;
+    --color-key-d1: #16773e;
+    --color-key-cont: #900F12;
+    --color-key-cont-d1: #740c0e;
+
+    --color-bg: #aaaaaa;
+    --color-body: #4b4b4b;
+    --color-bg-l1: #cecece;
+    --color-bg-l2: #fafafa;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: var(--color-bg);
+    color: var(--color-body);
+}
+
+/* Content Box                            */
+.content-box {
+    background-color: var(--color-bg-l1);
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 800px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* -------------------------------------- */
+/* Links                                  */
+/* -------------------------------------- */
+a {
+    color: var(--color-key-l1);
+    text-decoration: none;
+    font-weight: bold;
+    margin: 5px;
+    padding: 5px;
+}
+
+a:visited {
+    color: var(--color-key-d1);
+}
+
+a:hover {
+    color: var(--color-key-n0);
+    text-decoration: underline;
+}
+
+a:active {
+    color: var(--color-key-cont);
+}
+
+/* book title                             */
+a.book_title {
+    color: var(--color-body);
+}
+
+a.book_title:hover {
+    color: var(--color-body);
+}
+
+a.book_title:visited {
+    color: var(--color-body);
+}
+
+a.book_title:active {
+    color: var(--color-key-cont);
+}
+
+/* book description                       */
+a.book_description {
+    color: var(--color-body);
+    font-weight: normal;
+}
+
+a.book_description:hover {
+    color: var(--color-body);
+}
+
+a.book_description:visited {
+    color: var(--color-body);
+}
+
+a.book_description:active {
+    color: var(--color-key-cont);
+}
+
+
+/* -------------------------------------- */
+/* Headder                                */
+/* -------------------------------------- */
+h2 {
+    color: var(--color-body);
+    text-decoration: none;
+}
+
+h2:hover {
+    text-decoration: none;
+}
+
+/* -------------------------------------- */
+/* Form and Button                        */
+/* -------------------------------------- */
+label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="file"],
+input[type="date"],
+select {
+    padding: 8px;
+    margin-top: 5px;
+    margin-left: 5px;
+    border: 1px solid var(--color-bg-l1);
+    border-radius: 4px;
+    background-color: var(--color-bg-l2);
+    color: var(--color-body);
+}
+
+
+input[type="checkbox"] {
+    background-color: var(--color-bg-l1);
+}
+
+.normal {
+    accent-color: var(--color-key-l1);
+}
+
+button {
+    padding: 10px 10px;
+    margin: 10px;
+    background-color: var(--color-key-n0);
+    border: solid;
+    border: 10px;
+    border-color: #ffffff00;
+    border-radius: 10px;
+    color: #fff;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: var(--color-key-d1);
+}
+
+button:active {
+    background-color: var(--color-key-cont);
+}
+
+.delete-button {
+    background-color: var(--color-key-cont);
+}
+
+.delete-button:hover {
+    background-color: var(--color-key-cont);
+    background-color: var(--color-key-cont-d1);
+}
+
+button.mini-button {
+    padding: 8px 8px;
+    margin-top: 0px;
+    margin-right: 0px;
+}
+
+
+/* Img                                  */
+img {
+    max-width: 300px;
+    max-height: 400px;
+}
+
+/* -------------------------------------- */
+/* Tables                                 */
+/* -------------------------------------- */
+table {
+    margin: 10px;
+    margin-top: 15px;
+    border: none;
+    border-collapse: collapse;
+    background-color: var(--color-bg-l1);
+    /*display: block;*/
+}
+
+th,
+td {
+    border: 2px solid var(--color-bg);
+    text-align: left;
+    padding: 5px;
+    min-width: 100px;
+    max-width: none;
+}
+.book-form-table {
+    width: auto;
+    align-self: center;
+}
+.book-form-table td{
+    min-width: 300px;
+}
+
+/* -------------------------------------- */
+/* Mobile                                 */
+/* -------------------------------------- */
+@media (max-width: 1000px) {
+    body {
+        margin: 10px;
+        margin-right: 10px;
+        padding: 10px;
+        font-size: 2.5rem;
+    }
+
+    .content-box {
+        padding: 10px;
+        margin: 10px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    input[type="date"],
+    select {
+        font-size: 2rem;
+    }
+
+    button {
+        font-size: 2.5rem;
+        width: 100%
+    }
+
+    table {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 15px;
+        font-size: 2rem;
+    }
+
+
+}
+
+#camera {
+    width: 750px;
+    height: 1000px;
+}
+
+.place-right {
+    position: fixed;
+    bottom: 20px;
+    right: 10px;
+    width: 75px;
+    height: 75px;
+    border-radius: 100px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+
+#searchOverlay {
+    position: fixed;
+    top: 30px;
+    right: 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+}
+
+.spinner {
+    border: 5px solid var(--color-bg-l2);
+    border-top: 5px solid var(--color-key-n0);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-content {
+    background-color: var(--color-bg-l1);
+    margin: 5% auto;
+    padding: 20px;
+    border: none;
+    width: 90%;
+    max-width: 1200px;
+}

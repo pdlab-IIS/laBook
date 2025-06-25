@@ -1,0 +1,12 @@
+venv*
+__pycache__*
+covers/*
+*.pyc
+
+*.db
+*.log
+*.mp3
+
+keys.py
+
+logs/*
