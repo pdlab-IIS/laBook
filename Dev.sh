@@ -1,1 +1,4 @@
-. Venv/bin/activate
+#!/bin/bash
+kill -9 $(lsof -t -i:5000)
+. venv/bin/activate
+python app.py
