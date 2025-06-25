@@ -192,8 +192,8 @@ labook/
 
 ## 🏁 Quick Start
 
-1. Install dependencies  
-   `pip install flask requests`
+1. Make venv and install dependencies  
+   `pip install flask requests gunicorn`
 1. Make some files and directories
    - `covers/`, `logs/`
    - `static/alert.mp3`, `static/newentry.mp3`,  `static/register.mp3`
