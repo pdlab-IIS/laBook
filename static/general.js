@@ -1,25 +1,34 @@
 function isbnValidate(isbn) {
-    if (!isbn) return false;
-    isbn = isbn.replace(/[-\s]/g, '');
-    if (isbn.length !== 10 && isbn.length !== 13) return false;
-    if (!/^\d+$/.test(isbn)) return false;
-    if (isbn.length === 10) {
+      if (!isbn) return false;
+      // ハイフン・空白を除去
+      isbn = isbn.replace(/[-\s]/g, '').toUpperCase();
+
+      // ISBN‑10 フォーマットチェック（9桁の数字＋末尾に数字かX）
+      const is10 = /^[0-9]{9}[0-9X]$/.test(isbn);
+      // ISBN‑13 フォーマットチェック（全13桁数字）
+      const is13 = /^[0-9]{13}$/.test(isbn);
+      if (!is10 && !is13) return false;
+
+      if (is10) {
         let sum = 0;
+        // 重み 10 → 1 を掛け合わせ
         for (let i = 0; i < 9; i++) {
-            sum += (i + 1) * parseInt(isbn[i], 10);
+          sum += (10 - i) * parseInt(isbn[i], 10);
         }
-        const checksum = isbn[9].toUpperCase() === 'X' ? 10 : parseInt(isbn[9], 10);
-        sum += checksum;
-        return sum % 11 === 0;
-    } else if (isbn.length === 13) {
+        // 末尾チェックディジット
+        const last = isbn[9] === 'X' ? 10 : parseInt(isbn[9], 10);
+        sum += 1 * last;
+        return (sum % 11) === 0;
+      } else {
+        // ISBN‑13 のチェック
         let sum = 0;
         for (let i = 0; i < 12; i++) {
-            sum += (i % 2 === 0 ? 1 : 3) * parseInt(isbn[i], 10);
+          const n = parseInt(isbn[i], 10);
+          sum += n * (i % 2 === 0 ? 1 : 3);
         }
         const checksum = (10 - (sum % 10)) % 10;
         return checksum === parseInt(isbn[12], 10);
-    }
-    return false;
+      }
 }
 
 async function isBookExist(isbn) {

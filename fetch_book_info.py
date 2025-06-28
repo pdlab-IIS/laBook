@@ -102,7 +102,7 @@ def get_google_book_info(isbn):
     }
 
 def fetch_book_info(isbn):
-    if int(isbn) > 9780000000000:
+    if int(isbn) > 9780000000000 or (int(isbn)>1000000000 and int(isbn)<10000000000):
         with ThreadPoolExecutor() as executor:
             future_google = executor.submit(get_google_book_info, isbn)
             future_rakuten = executor.submit(get_rakuten_book_info, isbn)

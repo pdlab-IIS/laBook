@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (!respFetchBook.ok) {
                             console.error('Error fetching book:', respFetchBook.statusText);
                             musicAlert.play();
+                            searchInput.select();
                             return;
                         }
                         const bookData = await respFetchBook.json();
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (!bookData.title) {
                             console.error('Book data is incomplete:', book);
                             musicAlert.play();
+                            searchInput.select();
                             return;
                         }
                         book = {
