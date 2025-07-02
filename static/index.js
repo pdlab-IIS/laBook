@@ -181,8 +181,10 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
     });
+
     renderIndicators();
     updateBooksTable();
+    searchInput.focus();
 });
 
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
