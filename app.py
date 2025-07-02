@@ -64,7 +64,7 @@ def backup():
 
 
 def periodic_backup():
-    time.sleep(604800)
+    time.sleep(86400)
     while True:
         try:
             with app.app_context():

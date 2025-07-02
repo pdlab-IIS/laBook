@@ -14,9 +14,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const spnSpd = document.getElementById('spnSpd');
 
     if (window.location.href.includes("labook")) {
-        spnSpd.innerHTML = `<i class="fa-solid fa-gauge-high "></i>`
+        spnSpd.innerHTML = `<spn title="You are in FAST mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
     } else {
-        spnSpd.innerHTML = `<a href="http://labook.local"><i class="fa-solid fa-gauge-high fa-flip-horizontal"></i></a>`
+        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to FAST mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-gauge-high fa-flip-horizontal"></i></spn></a>`
     }
 
     const headers = Array.from(document.querySelectorAll('#booksTable thead th[data-key]'))

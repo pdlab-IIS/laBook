@@ -48,9 +48,9 @@ This project is a web application for managing and lending laboratory books.
 | Column Name   | Type    | Constraint                  | Description                   |
 | ------------- | ------- | --------------------------- | ----------------------------- |
 | `loan_id`     | INTEGER | PRIMARY KEY AUTOINCREMENT   | Loan ID                       |
-| `isbn`        | TEXT    | FOREIGN KEY → Books.isbn    | Loaned book                   |
-| `borrower_id` | INTEGER | FOREIGN KEY → Users.user_id | Borrower                      |
-| `returner_id` | INTEGER | FOREIGN KEY → Users.user_id | Returner                      |
+| `isbn`        | TEXT    | FOREIGN KEY → `Books.isbn`    | Loaned book                   |
+| `borrower_id` | INTEGER | FOREIGN KEY → `Users.user_id` | Borrower                      |
+| `returner_id` | INTEGER | FOREIGN KEY → `Users.user_id` | Returner                      |
 | `loan_date`   | TEXT    | NOT NULL                    | Loan date                     |
 | `due_date`    | TEXT    |                             | Due date                      |
 | `return_date` | TEXT    |                             | Return date (NULL if not yet) |
@@ -84,7 +84,7 @@ Implemented with Flask. All data is exchanged in JSON.
   "owner_id": 1,
   "comment": "Some notes",
   "shelf_id": 1,
-  "status": "<name(not user_id)>" //or None
+  "status": "<name(not user_id)>" //or null
 }
 ```
 ---
