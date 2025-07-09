@@ -7,6 +7,9 @@ const musicNewEntry = new Audio('static/newentry.mp3');
 const musicAlert = new Audio('static/alert.mp3');
 const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/labook/L/';
 
+let controller;
+let currentRequestId = 0;
+
 document.addEventListener('DOMContentLoaded', function () {
 
     const searchInput = document.getElementById('searchInput');
@@ -192,28 +195,26 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     const keyword = document.getElementById('searchInput').value.trim();
     const statusOnly = filterStatus;
     let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=100`;
+    
+    if (controller) controller.abort();
+    controller = new AbortController();
+
+    const requestId = ++currentRequestId;
+    
     if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
     try {
-        const resp = await fetch(url);
+        const resp = await fetch(url,{ signal: controller.signal, cache: 'no-store' });
+        if (requestId !== currentRequestId) return;
         let books = await resp.json();
+
         if (statusOnly) {
             books = books.filter(book => book.status !== null && book.status !== undefined && book.status !== "");
         }
+        
         tableBody.innerHTML = '';
-        for (const book of books) {
+        books.forEach((book, idx) => {
             const tr = document.createElement('tr');
-            let bookShelfCode = '';
-            if (book.shelf_id) {
-                try {
-                    const shelfResp = await fetch(`/shelves/${book.shelf_id}`);
-                    if (shelfResp.ok) {
-                        const shelfData = await shelfResp.json();
-                        bookShelfCode = shelfData.shelf_code || '';
-                    }
-                } catch (err) {
-                    bookShelfCode = '';
-                }
-            }
+            const shelfCellId = `shelf-cell-${requestId}-${idx}`;
             tr.innerHTML = `
                 <td class="clickable-cover" style="cursor:pointer;">
                     <img src="${book.cover_image_path || '/static/book-solid.svg'}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
@@ -221,9 +222,9 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
                 <td class="clickable-title" style="cursor:pointer;"><a class='book-title'>${book.title || ''}</a></td>
                 <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>
                 <td class="searchable-publisher" style="cursor:pointer">${book.publisher || ''}</td>
-                <td class="searchable-publication-date" >${book.publication_date || ''}</td>
-                <td class="searchable-shelf" style="cursor:pointer">${bookShelfCode || '<i class="fa-solid fa-circle-question"></i>'}</td>
-                ${book.status ? `<td class="searchable-borrower" >${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
+                <td class="searchable-publication-date">${book.publication_date || ''}</td>
+                <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer"><span class="shelf-loading"><i class="fa-solid fa-spinner fa-spin"></i></span></td>
+                ${book.status ? `<td class="searchable-borrower">${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
             `;
             tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
                 if (book.isbn) {
@@ -248,7 +249,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
                 }
             });
             tr.querySelector('.searchable-shelf')?.addEventListener('click', function () {
-                if (bookShelfCode) {
+                if (book.shelf_id) {
                     document.getElementById('searchInput').value = "shelf_id:" + String(book.shelf_id);
                     updateBooksTable();
                 }
@@ -259,11 +260,40 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
                 }
             });
             tableBody.appendChild(tr);
-        }
+
+            if (book.shelf_id) {
+                fetch(`/shelves/${book.shelf_id}`)
+                    .then(r => r.ok ? r.json() : {})
+                    .then(data => {
+                        if (requestId === currentRequestId) {
+                            const cell = document.getElementById(shelfCellId);
+                            if (cell) {
+                                cell.innerHTML = data.shelf_code
+                                    ? data.shelf_code
+                                    : '<i class="fa-solid fa-circle-question"></i>';
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        if (requestId === currentRequestId) {
+                            const cell = document.getElementById(shelfCellId);
+                            if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
+                        }
+                    });
+            } else {
+                const cell = tr.querySelector('.searchable-shelf');
+                if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
+            }
+        });
         if (books.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';
         }
     } catch (e) {
+        if (requestId !== currentRequestId) return;
         tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
     }
 }
+
+window.addEventListener('beforeunload', () => {
+  if (controller) controller.abort();
+});
