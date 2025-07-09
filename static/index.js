@@ -13,6 +13,7 @@ let currentRequestId = 0;
 let currentPage = 1;
 const pageSize = 10;
 let lastBooksCount = 0;
+let totalBooksCount = 0;
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -208,6 +209,19 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.focus();
 });
 
+async function fetchTotalBooksCount(keyword = '') {
+    let url = '/books?count_only=1';
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    try {
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) return 0;
+        const data = await resp.json();
+        return data.count || 0;
+    } catch {
+        return 0;
+    }
+}
+
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
@@ -221,6 +235,10 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     const requestId = ++currentRequestId;
     
     if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+    totalBooksCount = await fetchTotalBooksCount(keyword);
+    const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+
     try {
         const resp = await fetch(url,{ signal: controller.signal, cache: 'no-store' });
         if (requestId !== currentRequestId) return;
@@ -232,12 +250,13 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
 
         lastBooksCount = books.length;
 
-        // ページ情報表示
-        document.getElementById('pageInfo').textContent = `Page ${currentPage}`;
+        const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+        const endEntry = (currentPage - 1) * pageSize + books.length;
+        document.getElementById('pageInfo').textContent =
+            `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
 
-        // ボタン制御
-        document.getElementById('prevPageBtn').disabled = currentPage === 1;
-        document.getElementById('nextPageBtn').disabled = books.length < pageSize;
+        document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
+        document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
 
         tableBody.innerHTML = '';
         books.forEach((book, idx) => {

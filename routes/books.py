@@ -69,7 +69,17 @@ def list_books():
     offset = request.args.get("offset", type=int, default=0)
     limit = request.args.get("limit", type=int, default=100)
     keyword = request.args.get("keyword", "").strip()
-
+    count_only = request.args.get("count_only")
+    if count_only:
+            sql = "SELECT COUNT(*) FROM Books"
+            params = []
+            if keyword:
+                sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ?"
+                kw = f"%{keyword}%"
+                params = [kw, kw, kw]
+            count = db.execute(sql, params).fetchone()[0]
+            return jsonify({"count": count})
+    
     valid_sort_keys = {
         "isbn",
         "title",
