@@ -10,6 +10,10 @@ const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/labook/L/';
 let controller;
 let currentRequestId = 0;
 
+let currentPage = 1;
+const pageSize = 10;
+let lastBooksCount = 0;
+
 document.addEventListener('DOMContentLoaded', function () {
 
     const searchInput = document.getElementById('searchInput');
@@ -163,9 +167,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('searchBtn').addEventListener('click', function () {
+        currentPage = 1;
         updateBooksTable();
     });
     document.getElementById('resetBtn').addEventListener('click', function () {
+        currentPage = 1;
         document.getElementById('searchInput').value = '';
         currentSortKey = 'updatedtime';
         currentSortOrder = 'desc';
@@ -184,6 +190,18 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
     });
+    document.getElementById('prevPageBtn').addEventListener('click', function () {
+    if (currentPage > 1) {
+        currentPage--;
+        updateBooksTable();
+    }
+    });
+    document.getElementById('nextPageBtn').addEventListener('click', function () {
+        if (lastBooksCount === pageSize) { // 100件取得できていれば次ページあり
+            currentPage++;
+            updateBooksTable();
+        }
+    });
 
     renderIndicators();
     updateBooksTable();
@@ -194,8 +212,9 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
     const statusOnly = filterStatus;
-    let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=100`;
-    
+    const offset = (currentPage - 1) * pageSize;
+    let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
+  
     if (controller) controller.abort();
     controller = new AbortController();
 
@@ -210,7 +229,16 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         if (statusOnly) {
             books = books.filter(book => book.status !== null && book.status !== undefined && book.status !== "");
         }
-        
+
+        lastBooksCount = books.length;
+
+        // ページ情報表示
+        document.getElementById('pageInfo').textContent = `Page ${currentPage}`;
+
+        // ボタン制御
+        document.getElementById('prevPageBtn').disabled = currentPage === 1;
+        document.getElementById('nextPageBtn').disabled = books.length < pageSize;
+
         tableBody.innerHTML = '';
         books.forEach((book, idx) => {
             const tr = document.createElement('tr');
