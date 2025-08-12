@@ -193,13 +193,13 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.href = '/books/manage?isbn=0';
     });
     document.getElementById('prevPageBtn').addEventListener('click', function () {
-    if (currentPage > 1) {
-        currentPage--;
-        updateBooksTable();
-    }
+        if (currentPage > 1) {
+            currentPage--;
+            updateBooksTable();
+        }
     });
     document.getElementById('nextPageBtn').addEventListener('click', function () {
-        if (lastBooksCount === pageSize) { // 100件取得できていれば次ページあり
+        if (lastBooksCount === pageSize) {
             currentPage++;
             updateBooksTable();
         }
@@ -226,126 +226,145 @@ async function fetchTotalBooksCount(keyword = '') {
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
-    if (lastkey!=keyword){
-        currentPage =1;
+    if (lastkey != keyword) {
+        currentPage = 1;
         lastkey = keyword;
     }
     const statusOnly = filterStatus;
-    const offset = (currentPage - 1) * pageSize;
-    let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
-  
+    let books = [];
+    let totalBooksCount = 0;
+
     if (controller) controller.abort();
     controller = new AbortController();
-
     const requestId = ++currentRequestId;
-    
-    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
 
-    totalBooksCount = await fetchTotalBooksCount(keyword);
-    const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
-
-    try {
-        const resp = await fetch(url,{ signal: controller.signal, cache: 'no-store' });
-        if (requestId !== currentRequestId) return;
-        let books = await resp.json();
-
-        if (statusOnly) {
+    if (statusOnly) {
+        let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=99999`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+        try {
+            const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+            if (requestId !== currentRequestId) return;
+            books = await resp.json();
             books = books.filter(book => book.status !== null && book.status !== undefined && book.status !== "");
+            totalBooksCount = books.length;
+        } catch {
+            tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
+            return;
         }
+    } else {
+        const offset = (currentPage - 1) * pageSize;
+        let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+        try {
+            const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+            if (requestId !== currentRequestId) return;
+            books = await resp.json();
+            totalBooksCount = await fetchTotalBooksCount(keyword);
+            lastBooksCount = books.length;
+        } catch {
+            tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
+            return;
+        }
+    }
 
-        lastBooksCount = books.length;
-
+    let pagedBooks = books;
+    if (statusOnly) {
+        const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+        const startIdx = (currentPage - 1) * pageSize;
+        pagedBooks = books.slice(startIdx, startIdx + pageSize);
+        document.getElementById('pageInfo').textContent =
+            `Page ${currentPage} / ${totalPages} (${startIdx + 1}-${startIdx + pagedBooks.length} of ${totalBooksCount})`;
+        document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
+        document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
+    } else {
+        const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
         const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
         const endEntry = (currentPage - 1) * pageSize + books.length;
         document.getElementById('pageInfo').textContent =
             `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
-
         document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
         document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
+    }
 
-        tableBody.innerHTML = '';
-        books.forEach((book, idx) => {
-            const tr = document.createElement('tr');
-            const shelfCellId = `shelf-cell-${requestId}-${idx}`;
-            tr.innerHTML = `
-                <td class="clickable-cover" style="cursor:pointer;">
-                    <img src="${book.cover_image_path || '/static/book-solid.svg'}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
-                </td>
-                <td class="clickable-title" style="cursor:pointer;"><a class='book-title'>${book.title || ''}</a></td>
-                <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>
-                <td class="searchable-publisher" style="cursor:pointer">${book.publisher || ''}</td>
-                <td class="searchable-publication-date">${book.publication_date || ''}</td>
-                <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer"><span class="shelf-loading"><i class="fa-solid fa-spinner fa-spin"></i></span></td>
-                ${book.status ? `<td class="searchable-borrower">${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
-            `;
-            tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
-                if (book.isbn) {
-                    window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
-                }
-            });
-            tr.querySelector('.clickable-title')?.addEventListener('click', function () {
-                if (book.isbn) {
-                    window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
-                }
-            });
-            tr.querySelector('.searchable-author')?.addEventListener('click', function () {
-                if (book.author) {
-                    document.getElementById('searchInput').value = book.author;
-                    updateBooksTable();
-                }
-            });
-            tr.querySelector('.searchable-publisher')?.addEventListener('click', function () {
-                if (book.publisher) {
-                    document.getElementById('searchInput').value = book.publisher;
-                    updateBooksTable();
-                }
-            });
-            tr.querySelector('.searchable-shelf')?.addEventListener('click', function () {
-                if (book.shelf_id) {
-                    document.getElementById('searchInput').value = "shelf_id:" + String(book.shelf_id);
-                    updateBooksTable();
-                }
-            });
-            tr.querySelector('.clickable-status')?.addEventListener('click', function () {
-                if (book.status) {
-                    updateBooksTable();
-                }
-            });
-            tableBody.appendChild(tr);
-
-            if (book.shelf_id) {
-                fetch(`/shelves/${book.shelf_id}`)
-                    .then(r => r.ok ? r.json() : {})
-                    .then(data => {
-                        if (requestId === currentRequestId) {
-                            const cell = document.getElementById(shelfCellId);
-                            if (cell) {
-                                cell.innerHTML = data.shelf_code
-                                    ? data.shelf_code
-                                    : '<i class="fa-solid fa-circle-question"></i>';
-                            }
-                        }
-                    })
-                    .catch(() => {
-                        if (requestId === currentRequestId) {
-                            const cell = document.getElementById(shelfCellId);
-                            if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-                        }
-                    });
-            } else {
-                const cell = tr.querySelector('.searchable-shelf');
-                if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
+    tableBody.innerHTML = '';
+    pagedBooks.forEach((book, idx) => {
+        const tr = document.createElement('tr');
+        const shelfCellId = `shelf-cell-${requestId}-${idx}`;
+        tr.innerHTML = `
+            <td class="clickable-cover" style="cursor:pointer;">
+                <img src="${book.cover_image_path || '/static/book-solid.svg'}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
+            </td>
+            <td class="clickable-title" style="cursor:pointer;"><a class='book-title'>${book.title || ''}</a></td>
+            <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>
+            <td class="searchable-publisher" style="cursor:pointer">${book.publisher || ''}</td>
+            <td class="searchable-publication-date">${book.publication_date || ''}</td>
+            <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer"><span class="shelf-loading"><i class="fa-solid fa-spinner fa-spin"></i></span></td>
+            ${book.status ? `<td class="searchable-borrower">${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
+        `;
+        tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
+            if (book.isbn) {
+                window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
             }
         });
-        if (books.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';
+        tr.querySelector('.clickable-title')?.addEventListener('click', function () {
+            if (book.isbn) {
+                window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
+            }
+        });
+        tr.querySelector('.searchable-author')?.addEventListener('click', function () {
+            if (book.author) {
+                document.getElementById('searchInput').value = book.author;
+                updateBooksTable();
+            }
+        });
+        tr.querySelector('.searchable-publisher')?.addEventListener('click', function () {
+            if (book.publisher) {
+                document.getElementById('searchInput').value = book.publisher;
+                updateBooksTable();
+            }
+        });
+        tr.querySelector('.searchable-shelf')?.addEventListener('click', function () {
+            if (book.shelf_id) {
+                document.getElementById('searchInput').value = "shelf_id:" + String(book.shelf_id);
+                updateBooksTable();
+            }
+        });
+        tr.querySelector('.clickable-status')?.addEventListener('click', function () {
+            if (book.status) {
+                updateBooksTable();
+            }
+        });
+        tableBody.appendChild(tr);
+
+        if (book.shelf_id) {
+            fetch(`/shelves/${book.shelf_id}`)
+                .then(r => r.ok ? r.json() : {})
+                .then(data => {
+                    if (requestId === currentRequestId) {
+                        const cell = document.getElementById(shelfCellId);
+                        if (cell) {
+                            cell.innerHTML = data.shelf_code
+                                ? data.shelf_code
+                                : '<i class="fa-solid fa-circle-question"></i>';
+                        }
+                    }
+                })
+                .catch(() => {
+                    if (requestId === currentRequestId) {
+                        const cell = document.getElementById(shelfCellId);
+                        if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
+                    }
+                });
+        } else {
+            const cell = tr.querySelector('.searchable-shelf');
+            if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
         }
-    } catch (e) {
-        if (requestId !== currentRequestId) return;
-        tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
+    });
+    if (pagedBooks.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';
     }
 }
 
 window.addEventListener('beforeunload', () => {
-  if (controller) controller.abort();
+    if (controller) controller.abort();
 });
