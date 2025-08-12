@@ -1,20 +1,9 @@
 #! /usr/bin/env python3
 
+import os, threading, time
+
 import logging
 from logging.handlers import RotatingFileHandler
-import os, threading, time
-from flask import (
-    Flask,
-    send_from_directory,
-    render_template,
-    request,
-    url_for,
-    redirect
-)
-from flask_cors import CORS
-from db import close_connection, init_db, dbname
-from routes import register_blueprints
-from routes.notion import bp as notion_bp; 
 log_handler = RotatingFileHandler(
     "labook.log", maxBytes=5 * 1024 * 1024, backupCount=500, encoding="utf-8"
 )
@@ -25,15 +14,25 @@ log_handler.setFormatter(
 logging.basicConfig(level=logging.INFO, handlers=[log_handler, logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
+from flask import (
+    Flask,
+    send_from_directory,
+    render_template,
+    request,
+    url_for,
+    redirect
+)
+from flask_cors import CORS
+from routes import register_blueprints
+from routes.notion import bp as notion_bp; 
+from db import close_connection, init_db, dbname
 app = Flask(__name__)
-
 register_blueprints(app)
 app.register_blueprint(notion_bp)
 
 @app.teardown_appcontext
 def teardown_db(exception):
     close_connection(exception)
-
 
 @app.route("/")
 def hello_world():
@@ -98,4 +97,8 @@ def serve_cover(filename):
 if __name__ == "__main__":
     t = threading.Thread(target=periodic_backup, daemon=True)
     t.start()
+
+    import slack_notify
+    slack_notify.initiate()
+    
     app.run(host="0.0.0.0", port=5000, debug=True)
