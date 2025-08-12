@@ -154,19 +154,22 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 function makeEAN13(input) {
     let s = String(input);
-    const core9 = s.slice(0, 9);
-    if (!/^\d{9}$/.test(core9)) {
-        return false;
+    if (/^97[89]\d{10}$/.test(s) || /^2\d{12}$/.test(s)) {
+        return s;
     }
-    const ean12 = "978" + core9;
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-        const digit = Number(ean12[i]);
-        sum += digit * ((i % 2 === 0) ? 1 : 3);
-    }
-    const checkDigit = (10 - (sum % 10)) % 10;
 
-    return ean12 + String(checkDigit);
+    const core9 = s.slice(0, 9);
+    if (/^\d{9}$/.test(core9) && s.length === 10) {
+        const ean12 = "978" + core9;
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            const digit = Number(ean12[i]);
+            sum += digit * ((i % 2 === 0) ? 1 : 3);
+        }
+        const checkDigit = (10 - (sum % 10)) % 10;
+        return ean12 + String(checkDigit);
+    }
+    return s;
 }
 
 async function fetchBookInfo() {
