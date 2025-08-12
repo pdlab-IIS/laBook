@@ -14,7 +14,7 @@ from flask import (
 from flask_cors import CORS
 from db import close_connection, init_db, dbname
 from routes import register_blueprints
-
+from routes.notion import bp as notion_bp; 
 log_handler = RotatingFileHandler(
     "labook.log", maxBytes=5 * 1024 * 1024, backupCount=500, encoding="utf-8"
 )
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 register_blueprints(app)
+app.register_blueprint(notion_bp)
 
 @app.teardown_appcontext
 def teardown_db(exception):

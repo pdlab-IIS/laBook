@@ -146,23 +146,27 @@ document.addEventListener('DOMContentLoaded', async function () {
     manageBookForm.addEventListener('submit', async function (e) {
         e.preventDefault();
     });
+
+    if (isbnInput && isbnInput.value) {
+        loadReviews(isbnInput.value);
+    }
 });
 
 function makeEAN13(input) {
-  let s = String(input);
-  const core9 = s.slice(0, 9);
-  if (!/^\d{9}$/.test(core9)) {
-    return false;
-  }
-  const ean12 = "978" + core9;
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    const digit = Number(ean12[i]);
-    sum += digit * ( (i % 2 === 0) ? 1 : 3 );
-  }
-  const checkDigit = (10 - (sum % 10)) % 10;
-  
-  return ean12 + String(checkDigit);
+    let s = String(input);
+    const core9 = s.slice(0, 9);
+    if (!/^\d{9}$/.test(core9)) {
+        return false;
+    }
+    const ean12 = "978" + core9;
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+        const digit = Number(ean12[i]);
+        sum += digit * ((i % 2 === 0) ? 1 : 3);
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+
+    return ean12 + String(checkDigit);
 }
 
 async function fetchBookInfo() {
@@ -171,12 +175,12 @@ async function fetchBookInfo() {
     let isbn = isbnInput.value;
     const spnFetch = document.getElementById('spnBtnFetchBookInfo');
     const commentInput = document.getElementById('comment');
-    const isbnFormatted = makeEAN13(isbn); 
-    if(isbnFormatted!=isbn){
+    const isbnFormatted = makeEAN13(isbn);
+    if (isbnFormatted != isbn) {
         isbn = isbnFormatted;
         if (await transferToEditPage(isbn)) return;
         isbnInput.value = "";
-        if(!commentInput.value)commentInput.value=isbn;
+        if (!commentInput.value) commentInput.value = isbn;
         isbnInput.focus();
     }
     if (!isbnValidate(isbn)) {
@@ -358,3 +362,87 @@ async function returnBook() {
     }
 }
 
+async function addToNotion() {
+    const notionApiUrl = "/api/notion/add";
+
+    const isbn = document.getElementById('isbn').value;
+    const title = document.getElementById('title').value;
+    const reviewer = document.getElementById('itxName').value;
+    const review = document.getElementById('itxReview').value;
+
+    if (!reviewer) {
+        alert('Please enter your name.');
+        document.getElementById('itxName').focus();
+        return false;
+    }
+    if (!title) {
+        alert('Title must not be blank.');
+        document.getElementById('title').focus();
+        return false;
+    }
+    if (!review) {
+        alert('Please enter your review.');
+        document.getElementById('itxReview').focus();
+        return false;
+    }
+
+    const payload = { isbn, title, reviewer, review };
+
+    try {
+        const resp = await fetch(notionApiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+            alert("Successfully added review to Notion!");
+        } else {
+            const err = await resp.json();
+            alert("Failed to add to Notion: " + (err.description || resp.statusText));
+        }
+    } catch (e) {
+        alert("Error: " + e);
+    }
+}
+
+async function loadReviews(isbn) {
+    const tableBody = document.querySelector('#reviewTable tbody');
+    tableBody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    try {
+        const resp = await fetch(`/api/notion/get_review_by_isbn/${isbn}`);
+        if (!resp.ok) {
+            tableBody.innerHTML = '<tr><td colspan="3">Failed to load reviews</td></tr>';
+            return;
+        }
+        const data = await resp.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="3">No reviews found</td></tr>';
+            return;
+        }
+        tableBody.innerHTML = '';
+        data.forEach(entry => {
+            const props = entry.properties || {};
+            // Created Time
+            let reviewCreated = entry.created_time || '';
+            if (reviewCreated) {
+                // ISO8601 → YYYY-MM-DD HH:mm
+                const dt = new Date(reviewCreated);
+                reviewCreated = dt.toLocaleString();
+            }
+            // Reviewer
+            let reviewer = '';
+            if (props.Reviewer && props.Reviewer.select && props.Reviewer.select.name)
+                reviewer = props.Reviewer.select.name;
+            // Review
+            let review = '';
+            if (props.Review && props.Review.rich_text && props.Review.rich_text.length > 0)
+                review = props.Review.rich_text.map(rt => rt.plain_text).join('');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${reviewer} (${reviewCreated})</td><td>${review}</td>`;
+            tableBody.appendChild(tr);
+        });
+    } catch (e) {
+        tableBody.innerHTML = `<tr><td colspan="3">Error: ${e}</td></tr>`;
+    }
+}
