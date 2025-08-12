@@ -3,8 +3,8 @@ const BASE_URL = "{{ manage_book_url }}";
 var DetectedCount = 0, DetectedCode = "";
 var video, tmp, tmp_ctx, jan, prev, prev_ctx, w, h, mw, mh, x1, y1;
 var base_url = "/books/manage?dummy=0";
+var stream;
 document.addEventListener('DOMContentLoaded', function () {
-    //window.addEventListener('load', function (event) {
     location_code = document.getElementById("location_code").value;
     if (location_code != "None") base_url += "&location_code_override=" + encodeURIComponent(location_code);
     video = document.createElement('video');
@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', function () {
     navigator.mediaDevices.getUserMedia(
         { "audio": false, "video": { "facingMode": "environment", "width": { "ideal": Math.min(window.innerWidth - 100, 900) }, "height": { "ideal": Math.min(window.innerHeight - 300, 900) } } }
     ).then(
-        function (stream) {
+        function (s) {
+            stream = s;
             video.srcObject = stream;
             setTimeout(Scan, 500, true);
         }
@@ -106,6 +107,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.location.href = base_url + "&isbn=" + encodeURIComponent(result.codeResult.code);
                 DetectedCount = -1;
             }
+        }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+            }
+        } else {
+            navigator.mediaDevices.getUserMedia(
+                { "audio": false, "video": { "facingMode": "environment", "width": { "ideal": Math.min(window.innerWidth - 100, 900) }, "height": { "ideal": Math.min(window.innerHeight - 300, 900) } } }
+            ).then(
+                function (s) {
+                    stream = s;
+                    video.srcObject = stream;
+                }
+            ).catch(
+                function (err) {
+                    alert(err);
+                    console.error(err);
+                }
+            );
         }
     });
 });

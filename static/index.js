@@ -11,9 +11,10 @@ let controller;
 let currentRequestId = 0;
 
 let currentPage = 1;
-const pageSize = 10;
+const pageSize = 25;
 let lastBooksCount = 0;
 let totalBooksCount = 0;
+let lastkey = "";
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -225,6 +226,10 @@ async function fetchTotalBooksCount(keyword = '') {
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
+    if (lastkey!=keyword){
+        currentPage =1;
+        lastkey = keyword;
+    }
     const statusOnly = filterStatus;
     const offset = (currentPage - 1) * pageSize;
     let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
