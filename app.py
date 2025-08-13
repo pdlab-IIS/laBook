@@ -1,18 +1,9 @@
 #! /usr/bin/env python3
 
-import os, threading, time
+import os
+from logger_config import setup_logger
 
-import logging
-from logging.handlers import RotatingFileHandler
-log_handler = RotatingFileHandler(
-    "labook.log", maxBytes=5 * 1024 * 1024, backupCount=500, encoding="utf-8"
-)
-log_handler.setLevel(logging.INFO)
-log_handler.setFormatter(
-    logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
-)
-logging.basicConfig(level=logging.INFO, handlers=[log_handler, logging.StreamHandler()])
-logger = logging.getLogger(__name__)
+logger = setup_logger()
 
 from flask import (
     Flask,

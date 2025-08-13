@@ -1,16 +1,9 @@
 import os
 import time
-import threading
-import logging
+from logger_config import setup_logger
 from db import dbname
 
-log_handler = logging.FileHandler("labook.log", encoding="utf-8")
-log_handler.setLevel(logging.INFO)
-log_handler.setFormatter(
-    logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
-)
-logging.basicConfig(level=logging.INFO, handlers=[log_handler, logging.StreamHandler()])
-logger = logging.getLogger(__name__)
+logger = setup_logger("labook-sub","labook-sub.log")
 
 def do_backup():
     if os.path.exists(dbname):

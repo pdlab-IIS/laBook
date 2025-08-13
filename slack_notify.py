@@ -1,6 +1,9 @@
 import threading, requests, os
 import time, datetime
 
+import logging
+logger = logging.getLogger(__name__)
+
 import keys
 SLACK_WEBHOOK_URL = keys.SLACK_WEBHOOK_URL
 SLACK_APP_TOKEN = keys.SLACK_APP_TOKEN
@@ -18,7 +21,7 @@ def wait_until_next_friday_17():
     if target_time <= now:
         target_time += datetime.timedelta(days=7)
     wait_seconds = (target_time - now).total_seconds()
-    print("next slack notify:", target_time.isoformat())
+    logger.info("next slack notify:" + target_time.isoformat())
     return wait_seconds
 
 def loop():
@@ -67,11 +70,12 @@ def send_new_notion_entries_to_slack():
                     msg = f"<{url}|*New Book Review*>\nTitle: *{title}*\nISBN: {isbn}\nReviewer: {reviewer}\nReview: {review}\n<https://www.notion.so/22c8cd0402be80fc8dc5e750b784f54d|Open in Notion>"
                     requests.post(SLACK_WEBHOOK_URL, json={"text": msg})
         else:
-            print("Failed to fetch Notion entries:", resp.text)
+            logger.info("Failed to fetch Notion entries:", resp.text)
     except Exception as e:
-        print("Error in Notion→Slack:", e)
+        logger.error("Error in Notion→Slack:", e)
 
 def initiate():
+    logger.info("Slack webhook activated.")
     threading.Thread(target=loop, daemon=True).start()
 
 if __name__ == "__main__":
