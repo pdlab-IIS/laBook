@@ -19,19 +19,22 @@
         {% if mode == "edit" %}<i class="fas fa-book"></i> Edit / Borrow{% else %}<i class="fas fa-book-medical"></i>
         Add{% endif %}</h2>
     <!-- {% if error %} <div style="color:red;">Error: {{ error }}</div>{% endif %}-->
-    <div style="margin-left: 12px; margin-top: 15px;">
+    <div style="display: flex; align-items: flex-end; gap: 16px; margin-top:15px; margin-left:11px;">
         {% if mode == "edit" %}
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
             alt="No Image" style="max-height: min-content;">
+        <form id="coverUploadForm" enctype="multipart/form-data" style="display:inline;">
+            <input type="file" id="coverFileInput" name="cover" accept=".jpg,.jpeg,image/jpeg" style="display:inline;">
+        </form>
         {% else %}
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-medical-solid.svg') }}"
             alt="No Image" style="max-height: min-content;">
+        <button type="button" id="btnScanner" onclick="mobileScan()"><i class="fas fa-barcode" aria-hidden="true"></i>
+            Scanner</button>
         {% endif %}
     </div>
-    <button type="button" id="btnScanner" onclick="mobileScan()" {% if mode=="edit" %}style="display: none;" {% endif
-        %}><i class="fas fa-barcode" aria-hidden="true"></i> Scanner</button>
     <form method="post" id="manageBookForm" data-mode="{{ mode }}">
         <table class="book-form-table" aria-colspan="2">
             <tr>
@@ -73,7 +76,7 @@
                 </td>
             </tr>
             <tr>
-                <td><label for="comment"><i class="fa-solid fa-comment-dots"></i> Comment:</label></td>
+                <td><label for="comment"><i class="fa-solid fa-note-sticky"></i> Note:</label></td>
                 <td><input type="text" name="comment" id="comment" value="{{ book['comment'] if book else '' }}"></td>
             </tr>
             <tr style="display: none;">

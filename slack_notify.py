@@ -14,7 +14,7 @@ def wait_until_next_friday_17():
     # 0=Monday, ..., 2=Wednesday
     days_ahead = (2 - now.weekday()) % 7
     next_friday = now + datetime.timedelta(days=days_ahead)
-    target_time = next_friday.replace(hour=18, minute=0, second=0, microsecond=0)
+    target_time = next_friday.replace(hour=15, minute=0, second=0, microsecond=0)
     if target_time <= now:
         target_time += datetime.timedelta(days=7)
     wait_seconds = (target_time - now).total_seconds()
@@ -72,7 +72,7 @@ def send_new_notion_entries_to_slack():
         print("Error in Notion→Slack:", e)
 
 def initiate():
-    threading.Thread(target=send_new_notion_entries_to_slack, daemon=True).start()
+    threading.Thread(target=loop, daemon=True).start()
 
 if __name__ == "__main__":
     send_new_notion_entries_to_slack()

@@ -163,6 +163,40 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (isbnInput && isbnInput.value) {
         loadReviews(isbnInput.value);
     }
+
+    document.getElementById('coverFileInput').addEventListener('change', async function () {
+        const isbn = document.getElementById('isbn').value;
+        const fileInput = document.getElementById('coverFileInput');
+        if (!fileInput.files.length) return;
+
+        const file = fileInput.files[0];
+        if (!file.name.toLowerCase().endsWith('.jpg') && !file.name.toLowerCase().endsWith('.jpeg')) {
+            alert("Only .jpg files are allowed.");
+            return;
+        }
+        const formData = new FormData();
+        formData.append('cover', file);
+        try {
+            const resp = await fetch(`/books/${isbn}/cover`, {
+                method: 'POST',
+                body: formData
+            });
+            if (resp.ok) {
+                const result = await resp.json();
+                const coverImg = document.getElementById('cover_preview');
+                const cover_image_path = document.getElementById('cover_image_path');
+                if (coverImg) {
+                    coverImg.src = '/' + result.cover_image_path + '?t=' + Date.now();
+                    cover_image_path.value = result.cover_image_path
+                }
+            } else {
+                const err = await resp.json();
+                alert("Error: " + (err.error || resp.statusText));
+            }
+        } catch (e) {
+            alert(statusSpan.textContent = "Upload failed: " + e);
+        }
+    });
 });
 
 function makeEAN13(input) {

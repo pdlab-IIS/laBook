@@ -10,8 +10,7 @@ from flask import (
 )
 from db import get_db
 import fetch_book_info
-import requests
-import logging
+import requests, logging, os
 
 bp = Blueprint("books", __name__, url_prefix="/books")
 logger = logging.getLogger(__name__)
@@ -249,6 +248,28 @@ def api_fetch_book_info(isbn):
     else:
         return jsonify({"error": "No book info found"}), 404
 
+@bp.route("/<isbn>/cover", methods=["POST"])
+def upload_cover(isbn):
+    """
+    Upload or replace the cover image for a book.
+    Accepts multipart/form-data with a file field named 'cover'.
+    """
+    if 'cover' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['cover']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    if not file.filename.lower().endswith('.jpg') and not file.filename.lower().endswith('.jpeg'):
+        return jsonify({"error": "Only .jpg files are allowed"}), 400
+
+    covers_dir = os.path.join(os.path.dirname(__file__), '..', 'covers')
+    covers_dir = os.path.abspath(covers_dir)
+    os.makedirs(covers_dir, exist_ok=True)
+    save_path = os.path.join(covers_dir, f"{isbn}.jpg")
+    file.save(save_path)
+    logger.info(f"cover image added: {save_path}")
+    return jsonify({"message": "Cover image uploaded", "cover_image_path": f"covers/{isbn}.jpg"})
 
 @bp.route("/manage", methods=["GET"])
 def manage_book_page():
