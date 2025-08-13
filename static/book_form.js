@@ -123,7 +123,20 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (response.ok) {
                 const loan = await response.json();
                 if (loan) {
-                    itxTime.value = loan.loan_date;
+                    let loanDateStr = loan.loan_date;
+                    // Only append 'Z' if not already present and no timezone info
+                    if (!/Z$|[+-]\d{2}:?\d{2}$/.test(loanDateStr)) {
+                        loanDateStr += 'Z';
+                    }
+                    const utcDate = new Date(loanDateStr);
+                    const jstDate = new Date(utcDate.getTime());
+                    const yyyy = jstDate.getFullYear();
+                    const mm = String(jstDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(jstDate.getDate()).padStart(2, '0');
+                    const hh = String(jstDate.getHours()).padStart(2, '0');
+                    const min = String(jstDate.getMinutes()).padStart(2, '0');
+                    const ss = String(jstDate.getSeconds()).padStart(2, '0');
+                    itxTime.value = `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
                     itxLoanId.value = loan.loan_id;
                 }
             }
@@ -398,7 +411,8 @@ async function addToNotion() {
             body: JSON.stringify(payload)
         });
         if (resp.ok) {
-            alert("Successfully added review to Notion!");
+            alert("Review added to Notion successfully!");
+            window.location.reload()
         } else {
             const err = await resp.json();
             alert("Failed to add to Notion: " + (err.description || resp.statusText));
