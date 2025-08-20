@@ -14,12 +14,10 @@
 </head>
 
 <body>
-    <button onclick="cancelScan()" class="back-btn">
-        <i class="fa-solid fa-left-long"></i>
-    </button>
-
-    <body>
-        <h2><i class="fa-solid fa-location-dot"></i> {{ location_code }}</h2>
+     <body>
+        <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
+        <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
+        </button><i class="fa-solid fa-location-dot"></i> {{ location_code }}</h2>
         <br>
         <h1><i class="fa-solid fa-mobile-screen-button"></i> Scan Book</h1>
         <br>

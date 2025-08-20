@@ -2,7 +2,6 @@
 const BASE_URL = "{{ manage_book_url }}";
 var DetectedCount = 0, DetectedCode = "";
 var video, tmp, tmp_ctx, jan, prev, prev_ctx, w, h, mw, mh, x1, y1;
-var base_url = "/books/manage?dummy=0";
 var stream;
 document.addEventListener('DOMContentLoaded', function () {
     location_code = document.getElementById("location_code").value;
@@ -134,5 +133,3 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
-
-function cancelScan() { window.location.href = base_url; }

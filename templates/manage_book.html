@@ -14,8 +14,9 @@
 </head>
 
 <body>
-    <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;"><i
-                class="fa-solid fa-left-long"></i></button>
+    <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
+        <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
+        </button>
         {% if mode == "edit" %}<i class="fas fa-book"></i> Edit / Borrow{% else %}<i class="fas fa-book-medical"></i>
         Add{% endif %}</h2>
     <!-- {% if error %} <div style="color:red;">Error: {{ error }}</div>{% endif %}-->
@@ -94,12 +95,14 @@
     </form>
     <button type="button" id="btnDeleteBook" onclick="deleteBook()" class="delete-button" {% if mode !='edit'
         %}style="display:none;" {% endif %}><i class="fas fa-trash" aria-hidden="true"></i> Delete Book</button>
-    <button type="button" id="btnFetchBookInfo" onclick="fetchBookInfo()"><span id=spnBtnFetchBookInfo><i
+    <button type="button" id="btnFetchBookInfo" onclick="fetchBookInfo()" {% if mode =='edit'
+        %}style="display:none;" {% endif %}><span id=spnBtnFetchBookInfo><i
                 class="fas fa-globe" aria-hidden="true"></i></span> Get Online Biblio-info.</button>
     <button type="button" id="btnSubmitForm" onclick="updateBook()"><i class="fas fa-save" aria-hidden="true"></i>
         {% if mode
         == 'edit' %}Update{% else %}Add{% endif %} Book</button>
 
+    {% if mode == 'edit' %}<hr>{% endif %}
     <form id="formStatus">
         <table class="book-form-table" {% if mode !='edit' %}style="display:none;" {% endif %} aria-colspan="2">
             <tr>
@@ -148,8 +151,7 @@
         %}><i class="fa-solid fa-arrow-right-to-bracket"></i>
         Return Book</button>
 
-    <hr>
-
+    {% if mode == 'edit' %}<hr>{% endif %}
     <div id="reviewTableContainer" style="margin-top:30px;">
         <h3 {% if mode !='edit' %}style="display:none;" {% endif %}><i class="fa-solid fa-comments"></i> Reviews from<a
                 href="https://www.notion.so/book-review-22c8cd0402be80fc8dc5e750b784f54d" target="_blank"><i
