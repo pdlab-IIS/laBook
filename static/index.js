@@ -5,7 +5,7 @@ let lockModeLocation = null;
 const musicRegister = new Audio('static/register.mp3');
 const musicNewEntry = new Audio('static/newentry.mp3');
 const musicAlert = new Audio('static/alert.mp3');
-const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/labook/L/';
+const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/L/';
 
 let controller;
 let currentRequestId = 0;
@@ -24,9 +24,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const spnSpd = document.getElementById('spnSpd');
 
     if (window.location.href.includes("labook")) {
-        spnSpd.innerHTML = `<spn title="You are in FAST mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
+        spnSpd.innerHTML = `<spn title="You are in LOCAL mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
     } else {
-        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to FAST mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-gauge-high fa-flip-horizontal"></i></spn></a>`
+        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-globe"></i> Click here for LOCAL mode</spn></a>`
     }
 
     const headers = Array.from(document.querySelectorAll('#booksTable thead th[data-key]'))
@@ -189,6 +189,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('spnLockMode').addEventListener('click', function () {
         searchInput.value = magicPrefix;
         lockModeLocation = null;
+        searchInput.focus();
     });
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
@@ -211,18 +212,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     searchInput.focus();
 });
 
-async function fetchTotalBooksCount(keyword = '') {
-    let url = '/books?count_only=1';
-    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
-    try {
-        const resp = await fetch(url, { cache: 'no-store' });
-        if (!resp.ok) return 0;
-        const data = await resp.json();
-        return data.count || 0;
-    } catch {
-        return 0;
-    }
-}
 
 let shelfCache = {}; 
 async function loadAllShelves() {
@@ -273,8 +262,9 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         try {
             const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
             if (requestId !== currentRequestId) return;
-            books = await resp.json();
-            totalBooksCount = await fetchTotalBooksCount(keyword);
+            const data = await resp.json();
+            books = data.books || [];
+            totalBooksCount = data.total_count || books.length;
             lastBooksCount = books.length;
         } catch {
             tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';

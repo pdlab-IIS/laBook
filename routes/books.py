@@ -70,15 +70,29 @@ def list_books():
     keyword = request.args.get("keyword", "").strip()
     count_only = request.args.get("count_only")
     if count_only:
-            sql = "SELECT COUNT(*) FROM Books"
-            params = []
-            if keyword:
-                sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ?"
-                kw = f"%{keyword}%"
-                params = [kw, kw, kw]
-            count = db.execute(sql, params).fetchone()[0]
-            return jsonify({"count": count})
-    
+        sql = "SELECT COUNT(*) FROM Books"
+        params = []
+        if keyword:
+            sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ?"
+            kw = f"%{keyword}%"
+            params = [kw, kw, kw]
+        count = db.execute(sql, params).fetchone()[0]
+        return jsonify({"count": count})
+
+    # --- 総件数取得 ---
+    count_sql = "SELECT COUNT(*) FROM Books"
+    count_params = []
+    if keyword:
+        if keyword.startswith("shelf_id:"):
+            count_sql += " WHERE shelf_id = ? "
+            count_params.append(keyword.split(":", 1)[1])
+        else:
+            count_sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ? OR isbn LIKE ? "
+            kw = f"%{keyword}%"
+            count_params.extend([kw, kw, kw, keyword])
+    total_count = db.execute(count_sql, count_params).fetchone()[0]
+
+    # --- 本リスト取得 ---
     valid_sort_keys = {
         "isbn",
         "title",
@@ -93,9 +107,7 @@ def list_books():
     if order not in {"asc", "desc"}:
         order = "asc"
 
-    sql = """
-    SELECT * FROM Books
-    """
+    sql = "SELECT * FROM Books"
     params = []
     if keyword:
         if keyword.startswith("shelf_id:"):
@@ -114,7 +126,8 @@ def list_books():
         book = dict(zip(columns, row))
         book["status"] = get_book_status(db, book["isbn"])
         books.append(book)
-    return jsonify(books)
+    # --- ここで総数も返す ---
+    return jsonify({"total_count": total_count, "books": books})
 
 
 @bp.route("/<isbn>", methods=["GET"])

@@ -17,7 +17,8 @@ from flask_cors import CORS
 from routes import register_blueprints
 from routes.notion import bp as notion_bp; 
 from db import close_connection, init_db, dbname
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
+
 register_blueprints(app)
 app.register_blueprint(notion_bp)
 
@@ -77,6 +78,18 @@ def serve_cover(filename):
     covers_dir = "covers"
     response = send_from_directory(covers_dir, filename)
     response.headers["Cache-Control"] = "public, max-age=604800"
+    return response
+
+@app.route('/static/<filename>')
+def static(filename):
+    response = send_from_directory('static', filename)
+    if filename.endswith(('.js', '.css', '.html')):
+        if app.debug:
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=3600"
+    elif filename.endswith(('.mp3', '.jpg', '.jpeg', '.png', '.svg')):
+        response.headers["Cache-Control"] = "public, max-age=604800"
     return response
 
 if __name__ == "__main__":
