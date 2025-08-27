@@ -11,6 +11,7 @@ from flask import (
 from db import get_db
 import fetch_book_info
 import requests, logging, os
+from datetime import datetime
 
 bp = Blueprint("books", __name__, url_prefix="/books")
 logger = logging.getLogger(__name__)
@@ -277,12 +278,14 @@ def upload_cover(isbn):
         return jsonify({"error": "Only .jpg files are allowed"}), 400
 
     covers_dir = os.path.join(os.path.dirname(__file__), '..', 'covers')
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    save_filename = f"{isbn}_{timestamp}.jpg"
     covers_dir = os.path.abspath(covers_dir)
     os.makedirs(covers_dir, exist_ok=True)
-    save_path = os.path.join(covers_dir, f"{isbn}.jpg")
+    save_path = os.path.join(covers_dir, save_filename)
     file.save(save_path)
     logger.info(f"cover image added: {save_path}")
-    return jsonify({"message": "Cover image uploaded", "cover_image_path": f"covers/{isbn}.jpg"})
+    return jsonify({"message": "Cover image uploaded", "cover_image_path": f"covers/{save_filename}"})
 
 @bp.route("/manage", methods=["GET"])
 def manage_book_page():

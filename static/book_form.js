@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 const coverImg = document.getElementById('cover_preview');
                 const cover_image_path = document.getElementById('cover_image_path');
                 if (coverImg) {
-                    coverImg.src = '/' + result.cover_image_path + '?t=' + Date.now();
+                    coverImg.src = '/' + result.cover_image_path;
                     cover_image_path.value = result.cover_image_path
                 }
             } else {
