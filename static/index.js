@@ -16,7 +16,8 @@ let lastBooksCount = 0;
 let totalBooksCount = 0;
 let lastkey = "";
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    await loadAllShelves();
 
     const searchInput = document.getElementById('searchInput');
     const spnLockMode = document.getElementById('spnLockMode');
@@ -223,6 +224,20 @@ async function fetchTotalBooksCount(keyword = '') {
     }
 }
 
+let shelfCache = {}; 
+async function loadAllShelves() {
+    try {
+        const resp = await fetch('/shelves');
+        if (!resp.ok) return;
+        const shelves = await resp.json();
+        shelves.forEach(shelf => {
+            shelfCache[shelf.shelf_id] = shelf.shelf_code;
+        });
+    } catch (e) {
+        console.error('Failed to load shelves:', e);
+    }
+}
+
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
@@ -298,7 +313,11 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
             <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>
             <td class="searchable-publisher" style="cursor:pointer">${book.publisher || ''}</td>
             <td class="searchable-publication-date">${book.publication_date || ''}</td>
-            <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer"><span class="shelf-loading"><i class="fa-solid fa-spinner fa-spin"></i></span></td>
+            <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer">
+                ${book.shelf_id && shelfCache[book.shelf_id]
+                    ? shelfCache[book.shelf_id]
+                    : '<i class="fa-solid fa-circle-question"></i>'}
+            </td>
             ${book.status ? `<td class="searchable-borrower">${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
         `;
         tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
@@ -335,30 +354,6 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
             }
         });
         tableBody.appendChild(tr);
-
-        if (book.shelf_id) {
-            fetch(`/shelves/${book.shelf_id}`)
-                .then(r => r.ok ? r.json() : {})
-                .then(data => {
-                    if (requestId === currentRequestId) {
-                        const cell = document.getElementById(shelfCellId);
-                        if (cell) {
-                            cell.innerHTML = data.shelf_code
-                                ? data.shelf_code
-                                : '<i class="fa-solid fa-circle-question"></i>';
-                        }
-                    }
-                })
-                .catch(() => {
-                    if (requestId === currentRequestId) {
-                        const cell = document.getElementById(shelfCellId);
-                        if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-                    }
-                });
-        } else {
-            const cell = tr.querySelector('.searchable-shelf');
-            if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-        }
     });
     if (pagedBooks.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';

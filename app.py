@@ -75,7 +75,9 @@ def initdb():
 @app.route("/covers/<filename>")
 def serve_cover(filename):
     covers_dir = "covers"
-    return send_from_directory(covers_dir, filename)
+    response = send_from_directory(covers_dir, filename)
+    response.headers["Cache-Control"] = "public, max-age=604800"
+    return response
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
