@@ -197,6 +197,80 @@ document.addEventListener('DOMContentLoaded', async function () {
             alert(statusSpan.textContent = "Upload failed: " + e);
         }
     });
+
+    const dropZone = document.getElementById('coverDropZone');
+    const fileInput = document.getElementById('coverFileInput');
+    const form = document.getElementById('coverUploadForm');
+    const preview = document.getElementById('cover_preview');
+
+    if (!dropZone || !fileInput || !form) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.background = '#eef';
+        });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.background = '';
+        });
+    });
+
+    dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+            const file = files[0];
+            if (file.type === "image/jpeg" || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+                fileInput.files = files;
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    if (preview) preview.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            } else if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    const img = new Image();
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob(function (blob) {
+                            if (!blob) {
+                                alert("Failed to convert image.");
+                                return;
+                            }
+                            if (preview) preview.src = canvas.toDataURL('image/jpeg');
+                            const uniqueName = file.name.replace(/\.[^/.]+$/, "") + "_" + Date.now() + ".jpg";
+                            const jpegFile = new File([blob], uniqueName, { type: "image/jpeg" });
+                            const dt = new DataTransfer();
+                            dt.items.add(jpegFile);
+                            fileInput.files = dt.files;
+                            const event = new Event('change', { bubbles: true });
+                            fileInput.dispatchEvent(event);
+                        }, 'image/jpeg', 0.92);
+                    };
+                    img.onerror = function () {
+                        alert("Failed to load image for conversion.");
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert("Only image files can be uploaded.");
+            }
+        }
+    });
 });
 
 function makeEAN13(input) {

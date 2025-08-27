@@ -25,8 +25,11 @@
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
             alt="No Image" style="max-height: min-content;">
-        <form id="coverUploadForm" enctype="multipart/form-data" style="display:inline;">
+        <form id="coverUploadForm" enctype="multipart/form-data" style="display:inline; border: 2px dashed #bbb; padding: 8px; border-radius: 8px;">
             <input type="file" id="coverFileInput" name="cover" accept=".jpg,.jpeg,image/jpeg" style="display:inline;">
+            <div id="coverDropZone" style="margin-top:4px; color:#888; font-size:0.9em;">
+        Drag & Drop image here
+    </div>
         </form>
         {% else %}
         <img id="cover_preview"
