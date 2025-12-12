@@ -23,6 +23,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     const spnLockMode = document.getElementById('spnLockMode');
     const spnSpd = document.getElementById('spnSpd');
 
+    const initialShelfFilter = (window.initialShelfFilter || '').trim();
+    if (initialShelfFilter) {
+        searchInput.value = initialShelfFilter;
+    }
+
     if (window.location.href.includes("labook")) {
         spnSpd.innerHTML = `<spn title="You are in LOCAL mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
     } else {
@@ -208,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     renderIndicators();
-    updateBooksTable();
+    updateBooksTable();  
     searchInput.focus();
 });
 
@@ -295,9 +300,13 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     pagedBooks.forEach((book, idx) => {
         const tr = document.createElement('tr');
         const shelfCellId = `shelf-cell-${requestId}-${idx}`;
+        const coverSrc = book.cover_image_path
+          ? (book.cover_image_path.startsWith('/') ? book.cover_image_path : `/${book.cover_image_path}`)
+          : '/static/book-solid.svg';
+
         tr.innerHTML = `
             <td class="clickable-cover" style="cursor:pointer;">
-                <img src="${book.cover_image_path || '/static/book-solid.svg'}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
+                <img src="${coverSrc}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
             </td>
             <td class="clickable-title" style="cursor:pointer;"><a class='book-title'>${book.title || ''}</a></td>
             <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>

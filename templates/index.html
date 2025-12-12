@@ -3,6 +3,7 @@
 
 <head>
     <title>laBook[alpha-version]</title>
+    <script>window.initialShelfFilter = {{ (initial_filter or "")|tojson }};</script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='index.js') }}"></script>
     <script src="{{ url_for('static', filename='general.js') }}"></script>

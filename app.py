@@ -16,7 +16,7 @@ from flask import (
 from flask_cors import CORS
 from routes import register_blueprints
 from routes.notion import bp as notion_bp; 
-from db import close_connection, init_db, dbname
+from db import close_connection, init_db, dbname, get_db
 app = Flask(__name__, static_folder=None)
 
 register_blueprints(app)
@@ -26,20 +26,29 @@ app.register_blueprint(notion_bp)
 def teardown_db(exception):
     close_connection(exception)
 
+@app.route("/L", methods=["GET", "POST", "OPTIONS"])
+@app.route("/L/<location_code>", methods=["GET", "POST", "OPTIONS"])
+def scan_with_location(location_code=None):
+    if location_code:
+        db = get_db()
+        row = db.execute(
+            "SELECT shelf_id FROM Shelves WHERE shelf_code = ?", (location_code,)
+        ).fetchone()
+        if row:
+            return redirect(url_for("hello_world", shelf_id=row[0]))
+    return redirect(url_for("hello_world"))
+
 @app.route("/")
 def hello_world():
-    return render_template("index.html")
+    shelf_id = request.args.get('shelf_id', '')
+    initial_filter = f"shelf_id:{shelf_id}" if shelf_id else ""
+    return render_template("index.html", initial_filter=initial_filter)
 
 @app.route("/scan", methods=["GET", "POST", "OPTIONS"])
 @app.route("/scan/", methods=["GET", "POST", "OPTIONS"])
 @app.route("/scan/<location_code>", methods=["GET", "POST", "OPTIONS"])
 def scan(location_code=None):    
     return render_template("scan.html", location_code=location_code)
-
-@app.route("/L", methods=["GET", "POST", "OPTIONS"])
-@app.route("/L/<location_code>", methods=["GET", "POST", "OPTIONS"])
-def scan_with_location(location_code=None):
-    return redirect(url_for("books.manage_book_page", isbn=0, location_code_override=location_code))
 
 def do_backup():
     if os.path.exists(dbname):
