@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (window.location.href.includes("labook")) {
         spnSpd.innerHTML = `<spn title="You are in LOCAL mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
     } else {
-        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-globe"></i> Click here for LOCAL mode</spn></a>`
+        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-globe"></i></spn></a>`
     }
 
     const headers = Array.from(document.querySelectorAll('#booksTable thead th[data-key]'))
