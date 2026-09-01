@@ -3,7 +3,7 @@
 - 調査日: 2026-09-01 (JST)
 - 対象リポジトリ: `laBook`
 - 本番相当ホスト: Raspberry Pi 4 (`pdlab@labook`)
-- 調査方針: ローカルリポジトリと実機を読み取り専用で確認。サービスの再起動、ファイル変更、DB更新は実施していない
+- 調査方針: 本番checkout・本番DB・本番serviceは変更せず、書き込み検証は`/tmp`のDBコピーと別portだけで実施
 
 ## 1. 要約
 
@@ -36,8 +36,8 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | Python依存採取 | 実施済み。`requirements.txt`へRPiのversionを固定 |
 | 設定loader | 環境変数優先、`keys.py` fallbackの移行用`config.py`を追加 |
 | 秘密値template | 値を含まない`.env.example`を追加 |
-| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、保持処理、logging、管理route非公開、DOM安全性、DB修復、health/readinessの50件を追加 |
-| 隔離検証 | RPiの`/tmp`上で50 testsが成功。Bash、Gunicorn、systemd unit/timer、journald drop-inも検証済み |
+| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、保持処理、logging、管理route非公開、DOM安全性、DB修復、health/readiness、smoke target安全策の54件を追加 |
+| 隔離検証 | RPiの`/tmp`上で54 testsが成功。Bash、Gunicorn、systemd unit/timer、journald drop-inも検証済み |
 | 外部API耐性 | connect/read timeout、書誌providerの部分障害継続、Notionの502/504変換を実装 |
 | 出版日 | `YYYY`、`YYYY-MM`、`YYYY-MM-DD`の正規化を実装 |
 | 棚作成 | localhostへの自己HTTPを廃止し、同一SQLite transaction内の処理へ変更 |
@@ -54,6 +54,7 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | ログ | アプリ・Gunicorn・subappをjournalへ集約。access logからqueryを除外し、unitごとのrate limitとhost全体の256MB・30日保持設定を追加 |
 | Web管理操作 | `/backup`と`/initdb`を公開routeから削除。既存DBを上書きしない初期化CLIへ置換 |
 | DOM安全性 | Notion review、書籍情報、棚コードを`innerHTML`へ渡さず、`textContent`とDOM APIで描画 |
+| Phase 6 smoke | commit `95cbe74`をRPiの`/tmp`へ展開し、online snapshot（SHA-256 `76b690940339a5a2bd44f4ab6c7f5f088fc398bb98ba46c56815a7b573c3c4f3`）を使う127.0.0.1:5100で30項目が成功。一時serviceを停止し、一時DB・展開先も削除済み |
 | 本番反映 | 未実施 |
 | off-host backup | 未実施。平文DBを複製せず、暗号化recipient確立後に実施する |
 | SOPS + age | SOPS 3.13.3はSHA-256検証済み。age 1.3.2は取得物を検証できず破棄したため、端末鍵とrecipientは未作成 |
@@ -400,12 +401,14 @@ portに対する直接の`kill -9`は通常手順から除外する。
 ### Phase 6: 段階的リリース
 
 1. 開発ホストで全自動テスト
-2. DBコピーを使い、RPiの別portでsmoke test
+2. DBコピーを使い、RPiの別portでsmoke test（2026-09-01実施済み。commit `95cbe74`、127.0.0.1:5100、30/30項目成功）
 3. 保守時間前にbackupとrollback確認
 4. migration適用
 5. service切替
 6. 登録、編集、検索、棚移動、貸出、返却、レビューを確認
 7. error rate、latency、service restart数を監視
+
+Step 2ではSQLite Backup APIで作成・検証した本番DB snapshotだけを`/tmp/labook-smoke-95cbe74`で使用し、登録、編集、棚移動、貸出、二重貸出拒否、返却、二重返却拒否、削除までを確認した。`/backup`と`/initdb`が404であること、health/readiness、主要画面とAPIも含めて30/30項目が成功し、500応答・例外はなかった。テストデータを削除後、一時serviceを停止して5100番が閉じたことを確認し、本番DB snapshotを含む一時展開先も削除した。本番checkoutは`834a63a`のままcleanで、本番アプリ、subapp、nginx、ngrok tunnelは稼働し、`http://100.65.97.87/`は200を返した。
 
 ## 8. 秘密値管理の検討
 
