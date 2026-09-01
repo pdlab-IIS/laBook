@@ -36,8 +36,8 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | Python依存採取 | 実施済み。`requirements.txt`へRPiのversionを固定 |
 | 設定loader | 環境変数優先、`keys.py` fallbackの移行用`config.py`を追加 |
 | 秘密値template | 値を含まない`.env.example`を追加 |
-| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、DB修復の35件を追加 |
-| 隔離検証 | RPiの`/tmp`上で構文検査、35 tests＋14 subtests、秘密値なしのFlask/subapp importが成功 |
+| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、DB修復、health/readinessの38件を追加 |
+| 隔離検証 | RPiの`/tmp`上で38 testsが成功。秘密値なしのFlask/subapp importも確認済み |
 | 外部API耐性 | connect/read timeout、書誌providerの部分障害継続、Notionの502/504変換を実装 |
 | 出版日 | `YYYY`、`YYYY-MM`、`YYYY-MM-DD`の正規化を実装 |
 | 棚作成 | localhostへの自己HTTPを廃止し、同一SQLite transaction内の処理へ変更 |
@@ -47,6 +47,9 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | DB修復apply/rollback試験 | 検証済みsnapshotの`/tmp`コピーで成功。事前backupからの復元hashも元snapshotと一致 |
 | 過去backup復元調査 | 359/359個を読取成功。孤立ISBN 6件（active 2件を含む）の過去Bookは0件 |
 | 貸出整合性 | foreign keys、5秒busy timeout、貸出・返却transaction、未返却Loanの重複防止を実装 |
+| ヘルス診断 | 依存先へ接続しない`/healthz`とSQLite接続を確認する`/readyz`を実装 |
+| 再起動手順 | `Prod.sh`からport PIDへの`kill -9`と無関係なnginx/ngrok再起動を除去。systemdのactive状態とhealth/readinessを検証する方式へ変更 |
+| 運用設定 | 実機を基準にsystemd unitとnginx site設定を`deploy/`へ追加。subapp unitはアプリと同じvenvを使うよう変更 |
 | 本番反映 | 未実施 |
 | off-host backup | 未実施。平文DBを複製せず、暗号化recipient確立後に実施する |
 | SOPS + age | SOPS 3.13.3はSHA-256検証済み。age 1.3.2は取得物を検証できず破棄したため、端末鍵とrecipientは未作成 |
@@ -155,6 +158,9 @@ Gunicornは127.0.0.1:5000で9 workerを起動している。9 workerが必ず過
 | `http://127.0.0.1:5000/` | 200 | 約3 ms |
 | `http://127.0.0.1/` | 200 | 約3 ms |
 | `http://127.0.0.1:5000/books` | 200 | 約13 ms |
+| `http://100.65.97.87/`（開発ホストから） | 200 | 約45 ms |
+
+開発branchで追加した`/healthz`と`/readyz`は本番へ未配備であり、2026-09-01時点の本番応答は404である。HTTPSの待受けは確認されず、Tailscale IPによる本番ページは`http://100.65.97.87/`である。
 
 access logの集計では500が17件あり、すべて`/books`系だった。
 
@@ -254,7 +260,7 @@ Shelvesへの不正参照、Loansのborrower/returnerへの不正参照は0件�
 
 ### 6.3 P1: デプロイと再起動
 
-[`Prod.sh`](../Prod.sh)はport 5000のPIDを`kill -9`した後で、`Restart=always`のsystemd serviceを再起動している。systemd管理外のプロセス混在や自動再起動との競合を起こしやすい。
+調査時点の[`Prod.sh`](../Prod.sh)はport 5000のPIDを`kill -9`した後で、`Restart=always`のsystemd serviceを再起動していた。systemd管理外のプロセス混在や自動再起動との競合を起こしやすいため、開発branchではsystemdだけを使う手順へ修正済みである。
 
 デプロイは次の順に単純化する。
 
@@ -359,16 +365,16 @@ portに対する直接の`kill -9`は通常手順から除外する。
 4. 貸出・返却をtransaction化
 5. 同一ISBNの未返却Loanを1件に制限
 6. SQLiteのWAL、busy timeout、Gunicorn worker/thread数を負荷試験
-7. `/healthz`と、外部依存を確認する別のreadiness診断を追加
+7. `/healthz`と、必須のSQLite接続を確認する`/readyz`を追加（実装済み。外部APIは書籍操作時の部分障害継続を優先し、probeからは呼び出さない）
 
 ### Phase 4: 運用整備
 
-1. `kill -9`依存を廃止
-2. subappも同じvenvと設定loaderを利用
+1. `kill -9`依存を廃止（`Prod.sh`で実装済み。本番未配備）
+2. subappも同じvenvと設定loaderを利用（unitを実装済み。本番未配備）
 3. 日次backupをsystemd timerへ移行
 4. backupの保存数、保存期間、オフホスト転送を設定
 5. access/error/application logをlogrotateまたはjournalへ統合
-6. unit、nginx、Gunicorn設定をリポジトリ管理
+6. unit、nginx、Gunicorn設定をリポジトリ管理（systemd/nginxの現行baselineを追加済み。本番未配備）
 7. rollback手順を自動化
 
 ### Phase 5: セキュリティ境界

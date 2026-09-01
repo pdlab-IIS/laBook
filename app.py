@@ -26,6 +26,23 @@ register_blueprints(app)
 app.register_blueprint(notion_bp)
 
 
+@app.route("/healthz")
+def healthz():
+    """Cheap liveness probe that does not touch downstream dependencies."""
+    return jsonify({"status": "ok"})
+
+
+@app.route("/readyz")
+def readyz():
+    """Report whether the application can use its required local database."""
+    try:
+        get_db().execute("SELECT 1").fetchone()
+    except sqlite3.Error as error:
+        logger.warning("Readiness database check failed: %s", type(error).__name__)
+        return jsonify({"status": "not_ready", "database": "unavailable"}), 503
+    return jsonify({"status": "ready", "database": "ok"})
+
+
 @app.errorhandler(sqlite3.IntegrityError)
 def handle_database_integrity_error(error):
     get_db().rollback()

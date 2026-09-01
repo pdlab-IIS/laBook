@@ -1,0 +1,18 @@
+[Unit]
+Description=Gunicorn instance for laBook Flask app
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pdlab
+Group=pdlab
+WorkingDirectory=/home/pdlab/labook
+ExecStart=/home/pdlab/labook/start_gunicorn.sh
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
