@@ -1,4 +1,6 @@
+import os
 import sqlite3
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,6 +25,8 @@ class OnlineBackupTests(unittest.TestCase):
 
             self.assertTrue(backup_path.is_file())
             self.assertEqual(backup_path.parent, backup_dir)
+            if os.name == "posix":
+                self.assertEqual(stat.S_IMODE(backup_path.stat().st_mode), 0o600)
             backup = sqlite3.connect(
                 f"{backup_path.resolve().as_uri()}?mode=ro",
                 uri=True,

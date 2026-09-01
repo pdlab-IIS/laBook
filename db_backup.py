@@ -31,8 +31,16 @@ def create_online_backup(database_path, backup_dir=None):
     destination_path = destination_dir / f"{source_path.name}_{timestamp}.db"
     source_uri = f"{source_path.as_uri()}?mode=ro"
 
-    source = sqlite3.connect(source_uri, uri=True)
+    descriptor = os.open(
+        destination_path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o600,
+    )
+    os.close(descriptor)
+
+    source = None
     try:
+        source = sqlite3.connect(source_uri, uri=True)
         destination = sqlite3.connect(destination_path)
         try:
             source.backup(destination)
@@ -43,7 +51,8 @@ def create_online_backup(database_path, backup_dir=None):
         destination_path.unlink(missing_ok=True)
         raise
     finally:
-        source.close()
+        if source is not None:
+            source.close()
 
     check = sqlite3.connect(f"{destination_path.as_uri()}?mode=ro", uri=True)
     try:

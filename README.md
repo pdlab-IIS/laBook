@@ -227,3 +227,5 @@ labook/
 
 See [`docs/debugging-plan.md`](docs/debugging-plan.md) for the current system
 assessment, implementation phases, and the SOPS + age secret-sharing plan.
+The audited database migration workflow is documented in
+[`docs/database-repair.md`](docs/database-repair.md).
