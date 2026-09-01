@@ -40,7 +40,7 @@ def init_db():
         publisher TEXT,
         publication_date TEXT,
         cover_image_path TEXT,
-        owner_id INTEGER DEFAULT 0,
+        owner_id INTEGER DEFAULT NULL,
         comment TEXT,
         shelf_id INTEGER,
         updatedtime TEXT DEFAULT (CURRENT_TIMESTAMP),

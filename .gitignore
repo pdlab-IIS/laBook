@@ -9,4 +9,10 @@ covers/*
 
 keys.py
 
+.env
+.env.*
+!.env.example
+*.dec.env
+secrets/*.dec.*
+
 logs/*

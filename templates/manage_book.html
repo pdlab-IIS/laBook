@@ -76,7 +76,7 @@
             </tr>
             <tr style="display: none;">
                 <td><label for="owner_id">Owner ID:</label></td>
-                <td><input type="number" name="owner_id" id="owner_id" value="{{ book['owner_id'] if book else '0' }}">
+                <td><input type="number" name="owner_id" id="owner_id" value="{{ book['owner_id'] if book and book['owner_id'] else '' }}">
                 </td>
             </tr>
             <tr>

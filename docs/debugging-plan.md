@@ -22,6 +22,33 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 
 研究室ですでに監査・権限管理付きの共有パスワード管理サービスを標準利用している場合は、そのサービスをSOPS + ageより優先してよい。
 
+### 1.1 着手状況
+
+2026-09-01にPhase 0とPhase 1へ着手した。以下は本番へ未配備のworktree上の変更である。
+
+| 項目 | 状態 |
+|---|---|
+| SQLite online backup | 実施済み |
+| backup path | `/home/pdlab/labook/backups/manual/library-20260901-154418-733033.db` |
+| backup SHA-256 | `91791d5d2b519413a9fd0900335b3626a2c2182d6efcfd7f3be1bc96aa3bfde4` |
+| backup検証 | `integrity_check=ok`, 163,840 bytes, mode 0600 |
+| 外部キー違反 | backupにも477件。現状を保存する復元用snapshotであり、修復済みbackupではない |
+| Python依存採取 | 実施済み。`requirements.txt`へRPiのversionを固定 |
+| 設定loader | 環境変数優先、`keys.py` fallbackの移行用`config.py`を追加 |
+| 秘密値template | 値を含まない`.env.example`を追加 |
+| 自動テスト | 設定、外部API、Notion、Slack、Books、online backupの19件を追加 |
+| 隔離検証 | RPiの`/tmp`上で構文検査、19 tests＋11 subtests、秘密値なしのFlask/subapp importが成功 |
+| 外部API耐性 | connect/read timeout、書誌providerの部分障害継続、Notionの502/504変換を実装 |
+| 出版日 | `YYYY`、`YYYY-MM`、`YYYY-MM-DD`の正規化を実装 |
+| 棚作成 | localhostへの自己HTTPを廃止し、同一SQLite transaction内の処理へ変更 |
+| owner_id封じ込め | 新規schemaをNULL既定にし、値0をNULLへ変換。既存469件は未修復 |
+| app/subapp backup | `shutil.copy`を共通のSQLite online backup＋integrity checkへ置換 |
+| 本番反映 | 未実施 |
+| off-host backup | 未実施。平文DBを複製せず、暗号化recipient確立後に実施する |
+| SOPS + age | SOPS 3.13.3はSHA-256検証済み。age 1.3.2は取得物を検証できず破棄したため、端末鍵とrecipientは未作成 |
+
+実機の`labook`、`labook-subapp`、nginx、ngrokはこの作業では再起動していない。
+
 ## 2. システム全体像
 
 ```text
@@ -79,7 +106,7 @@ RPi固有のGPIOや周辺機器制御はない。バーコード読取に使う�
 ### 3.3 再現性に関する不足
 
 - `requirements.txt`、`pyproject.toml`、lockファイルがない
-- 自動テストがない
+- 調査開始時点では自動テストがなかった
 - systemd unit、nginx設定、ngrok設定がリポジトリ管理されていない
 - DB schema migrationの仕組みがない
 - `keys.py`は`.gitignore`対象だが、作成・更新・失効の運用が定義されていない

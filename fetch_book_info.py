@@ -1,35 +1,59 @@
-import requests, os
+import json
+import logging
+import os
+import sys
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
-import keys
+from datetime import date
 
-import logging
+import requests
+
+from config import MissingSettingError, get_setting
+from http_config import COVER_IMAGE_TIMEOUT, EXTERNAL_API_TIMEOUT
+
+
 logger = logging.getLogger(__name__)
+
 
 def save_cover_image(isbn, url):
     if not url:
         return None
+
     try:
-        response = requests.get(url, stream=True)
-        if response.status_code == 200:
-            path = f"covers/{isbn}.jpg"
-            if os.path.isfile(path):                
-                return path
+        response = requests.get(
+            url,
+            stream=True,
+            timeout=COVER_IMAGE_TIMEOUT,
+        )
+        response.raise_for_status()
+
+        path = f"covers/{isbn}.jpg"
+        if os.path.isfile(path):
+            return path
+
+        os.makedirs("covers", exist_ok=True)
+        try:
             with open(path, "xb") as file:
                 for chunk in response.iter_content(1024):
                     file.write(chunk)
-            return path
-    except Exception as e:
-        logger.error(f"Failed to save cover image for {isbn}: {e}")
-    return None
+        except FileExistsError:
+            # Another worker downloaded the same cover first.
+            pass
+        return path
+    except (requests.RequestException, OSError) as exc:
+        logger.warning("Cover download failed: error=%s", type(exc).__name__)
+        return None
+
 
 def get_ndl_book_info(isbn):
-    NDL_API_URL = "https://ndlsearch.ndl.go.jp/api/opensearch"
+    url = "https://ndlsearch.ndl.go.jp/api/opensearch"
     params = {"isbn": isbn}
-    response = requests.get(NDL_API_URL, params=params)
-
-    if response.status_code != 200:
-        return None
+    response = requests.get(
+        url,
+        params=params,
+        timeout=EXTERNAL_API_TIMEOUT,
+    )
+    response.raise_for_status()
 
     root = ET.fromstring(response.content)
 
@@ -43,70 +67,106 @@ def get_ndl_book_info(isbn):
     publisher = publisher_element.text if publisher_element is not None else None
 
     date_element = root.find(".//{http://purl.org/dc/terms/}issued")
-    date = date_element.text if date_element is not None else None
+    publication_date = date_element.text if date_element is not None else None
 
     return {
         "title": title,
         "author": author,
         "publisher": publisher,
-        "date": date,
+        "date": publication_date,
         "cover_url": None,
     }
 
+
 def get_rakuten_book_info(isbn):
     url = "https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404"
-    params = {"format": "json", "isbnjan": isbn, "applicationId": keys.RAKUTEN_APP_ID}
-    response = requests.get(url, params=params)
+    params = {
+        "format": "json",
+        "isbnjan": isbn,
+        "applicationId": get_setting("RAKUTEN_APP_ID"),
+    }
+    response = requests.get(url, params=params, timeout=EXTERNAL_API_TIMEOUT)
+    response.raise_for_status()
     data = response.json()
 
     if "Items" in data and len(data["Items"]) > 0:
         book = data["Items"][0]["Item"]
-        author = book.get("author", None)
+        author = book.get("author")
         if author:
             author = author.replace("', '", ", ").replace("['", "").replace("']", "")
         return {
-            "title": book.get("title", None),
+            "title": book.get("title"),
             "author": author,
-            "publisher": book.get("publisherName", None),
-            "date": book.get("salesDate", None),
-            "cover_url": book.get("largeImageUrl", None),
+            "publisher": book.get("publisherName"),
+            "date": book.get("salesDate"),
+            "cover_url": book.get("largeImageUrl"),
         }
     return None
 
+
 def get_google_book_info(isbn):
-    url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}&key={keys.GOOGLE_API_KEY}"
-    response = requests.get(url)
+    url = "https://www.googleapis.com/books/v1/volumes"
+    params = {"q": f"isbn:{isbn}", "key": get_setting("GOOGLE_API_KEY")}
+    response = requests.get(url, params=params, timeout=EXTERNAL_API_TIMEOUT)
+    response.raise_for_status()
     data = response.json()
 
-    if "items" not in data:
+    if not data.get("items"):
         return None
 
     book_data = data["items"][0]["volumeInfo"]
-    title = book_data.get("title", None)
-    authors = book_data.get("authors", None)
+    title = book_data.get("title")
+    authors = book_data.get("authors")
     if authors:
         author = str(authors).replace("', '", ", ").replace("['", "").replace("']", "")
     else:
-        author = book_data.get("author", None)
-    publisher = book_data.get("publisher")
-    date = book_data.get("publishedDate", None)
-    cover_url = book_data.get("imageLinks", {}).get("thumbnail", None)
+        author = book_data.get("author")
 
     return {
         "isbn": isbn,
         "title": title,
         "author": author,
-        "publisher": publisher,
-        "date": date,
-        "cover_url": cover_url,
+        "publisher": book_data.get("publisher"),
+        "date": book_data.get("publishedDate"),
+        "cover_url": book_data.get("imageLinks", {}).get("thumbnail"),
     }
 
+
+def _safe_provider_call(provider, isbn):
+    try:
+        return provider(isbn)
+    except (
+        MissingSettingError,
+        requests.RequestException,
+        ET.ParseError,
+        KeyError,
+        IndexError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        logger.warning(
+            "Book metadata provider failed: provider=%s error=%s",
+            getattr(provider, "__name__", type(provider).__name__),
+            type(exc).__name__,
+        )
+        return None
+
+
 def fetch_book_info(isbn):
-    if int(isbn) > 9780000000000 or (int(isbn)>1000000000 and int(isbn)<10000000000):
-        with ThreadPoolExecutor() as executor:
-            future_google = executor.submit(get_google_book_info, isbn)
-            future_rakuten = executor.submit(get_rakuten_book_info, isbn)
-            future_ndl = executor.submit(get_ndl_book_info, isbn)
+    numeric_isbn = int(isbn)
+    uses_multiple_providers = numeric_isbn > 9780000000000 or (
+        1000000000 < numeric_isbn < 10000000000
+    )
+
+    if uses_multiple_providers:
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_google = executor.submit(
+                _safe_provider_call, get_google_book_info, isbn
+            )
+            future_rakuten = executor.submit(
+                _safe_provider_call, get_rakuten_book_info, isbn
+            )
+            future_ndl = executor.submit(_safe_provider_call, get_ndl_book_info, isbn)
 
             google_info = future_google.result()
             rakuten_info = future_rakuten.result()
@@ -114,38 +174,68 @@ def fetch_book_info(isbn):
 
         sources = [google_info, rakuten_info, ndl_info]
     else:
-        sources = [get_rakuten_book_info(isbn)]
+        sources = [_safe_provider_call(get_rakuten_book_info, isbn)]
+
+    cover_url = next(
+        (source["cover_url"] for source in sources if source and source.get("cover_url")),
+        None,
+    )
+    publication_date = next(
+        (source["date"] for source in sources if source and source.get("date")),
+        None,
+    )
 
     return {
         "isbn": isbn,
-        "title": next((s["title"] for s in sources if s and s.get("title")), None),
-        "author": next((s["author"] for s in sources if s and s.get("author")), None),
-        "publisher": next(
-            (s["publisher"] for s in sources if s and s.get("publisher")), None
+        "title": next(
+            (source["title"] for source in sources if source and source.get("title")),
+            None,
         ),
-        "publication_date": normalize_publication_date(next((s["date"] for s in sources if s and s.get("date")), None)),
-        "cover_image_path": save_cover_image(isbn, next((s["cover_url"] for s in sources if s and s.get("cover_url")), None))
-        #"owner_id": None,
-        #"comment": None,
-        #"shelf_code": None
+        "author": next(
+            (
+                source["author"]
+                for source in sources
+                if source and source.get("author")
+            ),
+            None,
+        ),
+        "publisher": next(
+            (
+                source["publisher"]
+                for source in sources
+                if source and source.get("publisher")
+            ),
+            None,
+        ),
+        "publication_date": normalize_publication_date(publication_date),
+        "cover_image_path": save_cover_image(isbn, cover_url),
     }
+
 
 def normalize_publication_date(pub_date):
     if not pub_date:
         return None
-    if len(pub_date) == 7 and pub_date[4] == '-':
-        return pub_date + '-01'
-    if len(pub_date) == 4 and pub_date.isdigit():
-        return pub_date + '-01-01'
+
+    normalized = str(pub_date).strip()
+    if len(normalized) == 4 and normalized.isdigit():
+        normalized += "-01-01"
+    elif len(normalized) == 7 and normalized[4] == "-":
+        normalized += "-01"
+
+    try:
+        return date.fromisoformat(normalized).isoformat()
+    except ValueError:
+        logger.warning("Invalid publication date returned by metadata provider")
+        return None
+
 
 if __name__ == "__main__":
-    import sys, json
     if len(sys.argv) != 2:
         print("Usage: python fetch_book_info.py <ISBN>")
-        exit(1)
-    isbn = sys.argv[1]
-    info = fetch_book_info(isbn)
+        raise SystemExit(1)
+
+    info = fetch_book_info(sys.argv[1])
     if info:
         print(json.dumps(info, indent=2, ensure_ascii=False))
     else:
-        print("No book info found for ISBN:", isbn)
+        print("No book info found for ISBN:", sys.argv[1])

@@ -10,7 +10,7 @@ from flask import (
 )
 from db import get_db
 import fetch_book_info
-import requests, logging, os
+import logging, os
 from datetime import datetime
 
 bp = Blueprint("books", __name__, url_prefix="/books")
@@ -38,27 +38,38 @@ def get_book_status(db, isbn):
             return "Error: No borrower found"
 
 
-def get_or_create_shelf_id(shelf_code, shelf_name=None, location_description=None):
-    from flask import current_app
+def get_or_create_shelf_id(db, shelf_code, location_description=None):
+    """Return a shelf id without making a nested HTTP request to this app."""
+    normalized_code = str(shelf_code).strip()
+    if not normalized_code:
+        return None
 
-    api_url = f"http://localhost:5000/shelves/by_code/{shelf_code}"
-    try:
-        resp = requests.get(api_url)
-        if resp.status_code == 200:
-            return resp.json()["shelf_id"]
-    except Exception:
-        pass
-    api_url = f"http://localhost:5000/shelves"
-    payload = {
-        "shelf_code": shelf_code,
-        "shelf_name": shelf_name or shelf_code,
-        "location_description": location_description or "",
-    }
-    resp = requests.post(api_url, json=payload)
-    if resp.status_code in (200, 201):
-        return resp.json()["shelf_id"]
-    else:
-        raise Exception("Failed to create shelf")
+    row = db.execute(
+        "SELECT shelf_id FROM Shelves WHERE shelf_code = ?",
+        (normalized_code,),
+    ).fetchone()
+    if row:
+        return row[0]
+
+    db.execute(
+        """INSERT OR IGNORE INTO Shelves (shelf_code, location_description)
+           VALUES (?, ?)""",
+        (normalized_code, location_description or ""),
+    )
+    row = db.execute(
+        "SELECT shelf_id FROM Shelves WHERE shelf_code = ?",
+        (normalized_code,),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("Failed to create shelf")
+    return row[0]
+
+
+def normalize_owner_id(owner_id):
+    """Convert the historical zero sentinel to a nullable foreign key."""
+    if owner_id in (None, "", 0, "0"):
+        return None
+    return owner_id
 
 
 @bp.route("", methods=["GET"])
@@ -158,10 +169,13 @@ def add_book():
     if not all(k in data for k in required):
         abort(400, description="Missing required fields")
     db = get_db()
+    owner_id = normalize_owner_id(data.get("owner_id"))
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
-            data["shelf_code"], data.get("shelf_name"), data.get("location_description")
+            db,
+            data["shelf_code"],
+            data.get("location_description"),
         )
     try:
         db.execute(
@@ -173,7 +187,7 @@ def add_book():
                 data.get("publisher"),
                 data.get("publication_date"),
                 data.get("cover_image_path"),
-                data.get("owner_id"),
+                owner_id,
                 data.get("comment"),
                 shelf_id,
             ),
@@ -193,10 +207,13 @@ def update_book(isbn):
     cursor = db.execute("SELECT * FROM Books WHERE isbn = ?", (isbn,))
     if cursor.fetchone() is None:
         abort(404, description="Book not found")
+    owner_id = normalize_owner_id(data.get("owner_id"))
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
-            data["shelf_code"], data.get("shelf_name"), data.get("location_description")
+            db,
+            data["shelf_code"],
+            data.get("location_description"),
         )
     db.execute(
         """UPDATE Books SET title=?, author=?, publisher=?, publication_date=?, cover_image_path=?, owner_id=?, comment=?, shelf_id=?
@@ -207,7 +224,7 @@ def update_book(isbn):
             data.get("publisher"),
             data.get("publication_date"),
             data.get("cover_image_path"),
-            data.get("owner_id"),
+            owner_id,
             data.get("comment"),
             shelf_id,
             isbn,
@@ -228,7 +245,9 @@ def move_book(isbn):
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
-            data["shelf_code"], data.get("shelf_name"), data.get("location_description")
+            db,
+            data["shelf_code"],
+            data.get("location_description"),
         )
     db.execute(
         """UPDATE Books SET shelf_id=? WHERE isbn=?""",

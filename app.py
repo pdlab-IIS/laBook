@@ -16,7 +16,8 @@ from flask import (
 from flask_cors import CORS
 from routes import register_blueprints
 from routes.notion import bp as notion_bp; 
-from db import close_connection, init_db, dbname, get_db
+from db import DATABASE, close_connection, init_db, get_db
+from db_backup import create_online_backup
 app = Flask(__name__, static_folder=None)
 
 register_blueprints(app)
@@ -51,17 +52,13 @@ def scan(location_code=None):
     return render_template("scan.html", location_code=location_code)
 
 def do_backup():
-    if os.path.exists(dbname):
-        import datetime, shutil
-        backup_file = (
-            dbname + datetime.datetime.now().strftime("_%Y%m%d-%H%M%S") + ".db"
-        )
-        shutil.copy(dbname, backup_file)
-        logger.info(f"Backup created: {backup_file}")
-        return backup_file
-    else:
+    if not os.path.exists(DATABASE):
         logger.warning("Database file does not exist.")
         return None
+
+    backup_file = create_online_backup(DATABASE)
+    logger.info("Backup created: %s", backup_file)
+    return str(backup_file)
 
 @app.route("/backup")
 def backup():
@@ -75,8 +72,8 @@ def backup():
 def initdb():
     if app.debug:
         backup()
-        if os.path.exists(dbname):
-            os.remove(dbname)
+        if os.path.exists(DATABASE):
+            os.remove(DATABASE)
         init_db()
         return "Database initialized!"
     else:

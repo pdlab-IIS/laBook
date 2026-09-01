@@ -1,22 +1,19 @@
 import os
 import time
 from logger_config import setup_logger
-from db import dbname
+from db import DATABASE
+from db_backup import create_online_backup
 
 logger = setup_logger("labook-sub","labook-sub.log")
 
 def do_backup():
-    if os.path.exists(dbname):
-        import datetime, shutil
-        backup_file = (
-            dbname + datetime.datetime.now().strftime("_%Y%m%d-%H%M%S") + ".db"
-        )
-        shutil.copy(dbname, backup_file)
-        logger.info(f"Backup created: {backup_file}")
-        return backup_file
-    else:
+    if not os.path.exists(DATABASE):
         logger.warning("Database file does not exist.")
         return None
+
+    backup_file = create_online_backup(DATABASE)
+    logger.info("Backup created: %s", backup_file)
+    return str(backup_file)
 
 def periodic_backup():
     logger.info("periodic backup activated")
