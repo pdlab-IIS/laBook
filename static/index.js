@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         th.addEventListener('click', () => {
             if (key === 'status') {
                 filterStatus = !filterStatus;
+                currentPage = 1;
             } else {
                 if (currentSortKey === key) {
                     currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
@@ -252,54 +253,30 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     controller = new AbortController();
     const requestId = ++currentRequestId;
 
-    if (statusOnly) {
-        let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=99999`;
-        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
-        try {
-            const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-            if (requestId !== currentRequestId) return;
-            books = await resp.json();
-            books = books.filter(book => book.status !== null && book.status !== undefined && book.status !== "");
-            totalBooksCount = books.length;
-        } catch {
-            tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
-            return;
-        }
-    } else {
-        const offset = (currentPage - 1) * pageSize;
-        let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
-        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
-        try {
-            const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-            if (requestId !== currentRequestId) return;
-            const data = await resp.json();
-            books = data.books || [];
-            totalBooksCount = data.total_count || books.length;
-            lastBooksCount = books.length;
-        } catch {
-            tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
-            return;
-        }
+    const offset = (currentPage - 1) * pageSize;
+    let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (statusOnly) url += '&status=borrowed';
+    try {
+        const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (requestId !== currentRequestId) return;
+        const data = await resp.json();
+        books = data.books || [];
+        totalBooksCount = data.total_count || books.length;
+        lastBooksCount = books.length;
+    } catch {
+        tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
+        return;
     }
 
-    let pagedBooks = books;
-    if (statusOnly) {
-        const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
-        const startIdx = (currentPage - 1) * pageSize;
-        pagedBooks = books.slice(startIdx, startIdx + pageSize);
-        document.getElementById('pageInfo').textContent =
-            `Page ${currentPage} / ${totalPages} (${startIdx + 1}-${startIdx + pagedBooks.length} of ${totalBooksCount})`;
-        document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
-        document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
-    } else {
-        const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
-        const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-        const endEntry = (currentPage - 1) * pageSize + books.length;
-        document.getElementById('pageInfo').textContent =
-            `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
-        document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
-        document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
-    }
+    const pagedBooks = books;
+    const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+    const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endEntry = (currentPage - 1) * pageSize + books.length;
+    document.getElementById('pageInfo').textContent =
+        `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
+    document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
+    document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
 
     tableBody.replaceChildren();
     pagedBooks.forEach((book, idx) => {

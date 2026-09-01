@@ -80,29 +80,40 @@ def list_books():
     offset = request.args.get("offset", type=int, default=0)
     limit = request.args.get("limit", type=int, default=100)
     keyword = request.args.get("keyword", "").strip()
+    status_filter = request.args.get("status", "").strip()
+    conditions = []
+    filter_params = []
+
+    if keyword:
+        if keyword.startswith("shelf_id:"):
+            conditions.append("Books.shelf_id = ?")
+            filter_params.append(keyword.split(":", 1)[1])
+        else:
+            conditions.append(
+                "(Books.title LIKE ? OR Books.author LIKE ? "
+                "OR Books.publisher LIKE ? OR Books.isbn LIKE ?)"
+            )
+            kw = f"%{keyword}%"
+            filter_params.extend([kw, kw, kw, keyword])
+
+    if status_filter == "borrowed":
+        conditions.append(
+            "EXISTS ("
+            "SELECT 1 FROM Loans "
+            "WHERE Loans.isbn = Books.isbn AND Loans.return_date IS NULL"
+            ")"
+        )
+
+    where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
     count_only = request.args.get("count_only")
     if count_only:
-        sql = "SELECT COUNT(*) FROM Books"
-        params = []
-        if keyword:
-            sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ?"
-            kw = f"%{keyword}%"
-            params = [kw, kw, kw]
-        count = db.execute(sql, params).fetchone()[0]
+        sql = "SELECT COUNT(*) FROM Books" + where_clause
+        count = db.execute(sql, filter_params).fetchone()[0]
         return jsonify({"count": count})
 
     # --- 総件数取得 ---
-    count_sql = "SELECT COUNT(*) FROM Books"
-    count_params = []
-    if keyword:
-        if keyword.startswith("shelf_id:"):
-            count_sql += " WHERE shelf_id = ? "
-            count_params.append(keyword.split(":", 1)[1])
-        else:
-            count_sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ? OR isbn LIKE ? "
-            kw = f"%{keyword}%"
-            count_params.extend([kw, kw, kw, keyword])
-    total_count = db.execute(count_sql, count_params).fetchone()[0]
+    count_sql = "SELECT COUNT(*) FROM Books" + where_clause
+    total_count = db.execute(count_sql, filter_params).fetchone()[0]
 
     # --- 本リスト取得 ---
     valid_sort_keys = {
@@ -119,17 +130,9 @@ def list_books():
     if order not in {"asc", "desc"}:
         order = "asc"
 
-    sql = "SELECT * FROM Books"
-    params = []
-    if keyword:
-        if keyword.startswith("shelf_id:"):
-            sql += " WHERE shelf_id = ? "
-            params.append(keyword.split(":", 1)[1])
-        else:
-            sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ? OR isbn LIKE ? "
-            kw = f"%{keyword}%"
-            params.extend([kw, kw, kw, keyword])
-    sql += f" ORDER BY {sort_key} {order.upper()} LIMIT ? OFFSET ?"
+    sql = "SELECT Books.* FROM Books" + where_clause
+    params = list(filter_params)
+    sql += f" ORDER BY Books.{sort_key} {order.upper()} LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     cursor = db.execute(sql, params)
     books = []

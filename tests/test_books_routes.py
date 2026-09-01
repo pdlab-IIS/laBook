@@ -12,6 +12,10 @@ class BookRouteTests(unittest.TestCase):
         self.db = sqlite3.connect(":memory:")
         self.db.executescript(
             """
+            CREATE TABLE Users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL
+            );
             CREATE TABLE Shelves (
                 shelf_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 shelf_code TEXT NOT NULL UNIQUE,
@@ -27,6 +31,14 @@ class BookRouteTests(unittest.TestCase):
                 owner_id INTEGER DEFAULT NULL,
                 comment TEXT,
                 shelf_id INTEGER
+            );
+            CREATE TABLE Loans (
+                loan_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                isbn TEXT,
+                borrower_id INTEGER,
+                loan_date TEXT NOT NULL,
+                due_date TEXT,
+                return_date TEXT
             );
             """
         )
@@ -54,6 +66,33 @@ class BookRouteTests(unittest.TestCase):
             ("9780000000001",),
         ).fetchone()[0]
         self.assertIsNone(owner_id)
+
+    def test_borrowed_filter_applies_before_pagination(self):
+        self.db.execute("INSERT INTO Users (name) VALUES ('Borrower')")
+        self.db.executemany(
+            "INSERT INTO Books (isbn, title) VALUES (?, ?)",
+            [(1000 + index, f"Book {index:02d}") for index in range(30)],
+        )
+        self.db.executemany(
+            """INSERT INTO Loans (isbn, borrower_id, loan_date, return_date)
+               VALUES (?, 1, '2026-09-01', ?)""",
+            [
+                (1005, None),
+                (1010, "2026-09-02"),
+                (1029, None),
+            ],
+        )
+        self.db.commit()
+
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            response = self.client.get(
+                "/books?status=borrowed&sort=isbn&order=asc&limit=25&offset=0"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data["total_count"], 2)
+        self.assertEqual([book["isbn"] for book in data["books"]], [1005, 1029])
 
 
 if __name__ == "__main__":

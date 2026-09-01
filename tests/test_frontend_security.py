@@ -19,6 +19,12 @@ class FrontendSecurityTests(unittest.TestCase):
         self.assertIn("reviewCell.textContent = review", form_source)
         self.assertIn("title.textContent = book.title", index_source)
 
+    def test_borrowed_filter_is_requested_from_the_full_dataset(self):
+        index_source = (ROOT / "static" / "index.js").read_text(encoding="utf-8")
+
+        self.assertIn("url += '&status=borrowed'", index_source)
+        self.assertNotIn("limit=99999", index_source)
+
 
 if __name__ == "__main__":
     unittest.main()
