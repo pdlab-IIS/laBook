@@ -5,7 +5,7 @@ let lockModeLocation = null;
 const musicRegister = new Audio('static/register.mp3');
 const musicNewEntry = new Audio('static/newentry.mp3');
 const musicAlert = new Audio('static/alert.mp3');
-const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/labook/L/';
+const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/L/';
 
 let controller;
 let currentRequestId = 0;
@@ -16,16 +16,22 @@ let lastBooksCount = 0;
 let totalBooksCount = 0;
 let lastkey = "";
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    await loadAllShelves();
 
     const searchInput = document.getElementById('searchInput');
     const spnLockMode = document.getElementById('spnLockMode');
     const spnSpd = document.getElementById('spnSpd');
 
+    const initialShelfFilter = (window.initialShelfFilter || '').trim();
+    if (initialShelfFilter) {
+        searchInput.value = initialShelfFilter;
+    }
+
     if (window.location.href.includes("labook")) {
-        spnSpd.innerHTML = `<spn title="You are in FAST mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
+        spnSpd.innerHTML = `<spn title="You are in LOCAL mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
     } else {
-        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to FAST mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-gauge-high fa-flip-horizontal"></i></spn></a>`
+        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-globe"></i></spn></a>`
     }
 
     const headers = Array.from(document.querySelectorAll('#booksTable thead th[data-key]'))
@@ -188,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('spnLockMode').addEventListener('click', function () {
         searchInput.value = magicPrefix;
         lockModeLocation = null;
+        searchInput.focus();
     });
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
@@ -206,20 +213,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     renderIndicators();
-    updateBooksTable();
+    updateBooksTable();  
     searchInput.focus();
 });
 
-async function fetchTotalBooksCount(keyword = '') {
-    let url = '/books?count_only=1';
-    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+let shelfCache = {}; 
+async function loadAllShelves() {
     try {
-        const resp = await fetch(url, { cache: 'no-store' });
-        if (!resp.ok) return 0;
-        const data = await resp.json();
-        return data.count || 0;
-    } catch {
-        return 0;
+        const resp = await fetch('/shelves');
+        if (!resp.ok) return;
+        const shelves = await resp.json();
+        shelves.forEach(shelf => {
+            shelfCache[shelf.shelf_id] = shelf.shelf_code;
+        });
+    } catch (e) {
+        console.error('Failed to load shelves:', e);
     }
 }
 
@@ -258,8 +267,9 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         try {
             const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
             if (requestId !== currentRequestId) return;
-            books = await resp.json();
-            totalBooksCount = await fetchTotalBooksCount(keyword);
+            const data = await resp.json();
+            books = data.books || [];
+            totalBooksCount = data.total_count || books.length;
             lastBooksCount = books.length;
         } catch {
             tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
@@ -290,15 +300,23 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     pagedBooks.forEach((book, idx) => {
         const tr = document.createElement('tr');
         const shelfCellId = `shelf-cell-${requestId}-${idx}`;
+        const coverSrc = book.cover_image_path
+          ? (book.cover_image_path.startsWith('/') ? book.cover_image_path : `/${book.cover_image_path}`)
+          : '/static/book-solid.svg';
+
         tr.innerHTML = `
             <td class="clickable-cover" style="cursor:pointer;">
-                <img src="${book.cover_image_path || '/static/book-solid.svg'}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
+                <img src="${coverSrc}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
             </td>
             <td class="clickable-title" style="cursor:pointer;"><a class='book-title'>${book.title || ''}</a></td>
             <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>
             <td class="searchable-publisher" style="cursor:pointer">${book.publisher || ''}</td>
             <td class="searchable-publication-date">${book.publication_date || ''}</td>
-            <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer"><span class="shelf-loading"><i class="fa-solid fa-spinner fa-spin"></i></span></td>
+            <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer">
+                ${book.shelf_id && shelfCache[book.shelf_id]
+                    ? shelfCache[book.shelf_id]
+                    : '<i class="fa-solid fa-circle-question"></i>'}
+            </td>
             ${book.status ? `<td class="searchable-borrower">${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
         `;
         tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
@@ -335,30 +353,6 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
             }
         });
         tableBody.appendChild(tr);
-
-        if (book.shelf_id) {
-            fetch(`/shelves/${book.shelf_id}`)
-                .then(r => r.ok ? r.json() : {})
-                .then(data => {
-                    if (requestId === currentRequestId) {
-                        const cell = document.getElementById(shelfCellId);
-                        if (cell) {
-                            cell.innerHTML = data.shelf_code
-                                ? data.shelf_code
-                                : '<i class="fa-solid fa-circle-question"></i>';
-                        }
-                    }
-                })
-                .catch(() => {
-                    if (requestId === currentRequestId) {
-                        const cell = document.getElementById(shelfCellId);
-                        if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-                    }
-                });
-        } else {
-            const cell = tr.querySelector('.searchable-shelf');
-            if (cell) cell.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-        }
     });
     if (pagedBooks.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';

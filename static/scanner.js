@@ -134,5 +134,3 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
-
-function cancelScan() { window.location.href = base_url; }

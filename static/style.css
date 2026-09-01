@@ -11,8 +11,8 @@
 
 * {
     --color-key-l1: #2d8b44;
-    --color-key-n0: #51bb6c;
-    --color-key-d1: #16773e;
+    --color-key-n0: #328f49;
+    --color-key-d1: #126a37;
     --color-key-cont: #900F12;
     --color-key-cont-d1: #740c0e;
 
@@ -144,7 +144,7 @@ input[type="checkbox"] {
 
 button {
     padding: 10px 10px;
-    margin: 10px;
+    margin: 5px;
     background-color: var(--color-key-n0);
     border: solid;
     border: 10px;
@@ -154,12 +154,21 @@ button {
     cursor: pointer;
 }
 
+
+button.grey {
+    background-color: var(--color-bg-l1);
+    color: var(--color-body);
+    border-color: var(--color-bg-l1);
+}
+
 button:hover {
     background-color: var(--color-key-d1);
+    color: #fff;
 }
 
 button:active {
     background-color: var(--color-key-cont);
+    color: #fff;
 }
 
 .delete-button {

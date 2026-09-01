@@ -123,7 +123,20 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (response.ok) {
                 const loan = await response.json();
                 if (loan) {
-                    itxTime.value = loan.loan_date;
+                    let loanDateStr = loan.loan_date;
+                    // Only append 'Z' if not already present and no timezone info
+                    if (!/Z$|[+-]\d{2}:?\d{2}$/.test(loanDateStr)) {
+                        loanDateStr += 'Z';
+                    }
+                    const utcDate = new Date(loanDateStr);
+                    const jstDate = new Date(utcDate.getTime());
+                    const yyyy = jstDate.getFullYear();
+                    const mm = String(jstDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(jstDate.getDate()).padStart(2, '0');
+                    const hh = String(jstDate.getHours()).padStart(2, '0');
+                    const min = String(jstDate.getMinutes()).padStart(2, '0');
+                    const ss = String(jstDate.getSeconds()).padStart(2, '0');
+                    itxTime.value = `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
                     itxLoanId.value = loan.loan_id;
                 }
             }
@@ -146,23 +159,138 @@ document.addEventListener('DOMContentLoaded', async function () {
     manageBookForm.addEventListener('submit', async function (e) {
         e.preventDefault();
     });
+
+    if (isbnInput && isbnInput.value) {
+        loadReviews(isbnInput.value);
+    }
+
+    document.getElementById('coverFileInput').addEventListener('change', async function () {
+        const isbn = document.getElementById('isbn').value;
+        const fileInput = document.getElementById('coverFileInput');
+        if (!fileInput.files.length) return;
+
+        const file = fileInput.files[0];
+        if (!file.name.toLowerCase().endsWith('.jpg') && !file.name.toLowerCase().endsWith('.jpeg')) {
+            alert("Only .jpg files are allowed.");
+            return;
+        }
+        const formData = new FormData();
+        formData.append('cover', file);
+        try {
+            const resp = await fetch(`/books/${isbn}/cover`, {
+                method: 'POST',
+                body: formData
+            });
+            if (resp.ok) {
+                const result = await resp.json();
+                const coverImg = document.getElementById('cover_preview');
+                const cover_image_path = document.getElementById('cover_image_path');
+                if (coverImg) {
+                    coverImg.src = '/' + result.cover_image_path;
+                    cover_image_path.value = result.cover_image_path
+                }
+            } else {
+                const err = await resp.json();
+                alert("Error: " + (err.error || resp.statusText));
+            }
+        } catch (e) {
+            alert(statusSpan.textContent = "Upload failed: " + e);
+        }
+    });
+
+    const dropZone = document.getElementById('coverDropZone');
+    const fileInput = document.getElementById('coverFileInput');
+    const form = document.getElementById('coverUploadForm');
+    const preview = document.getElementById('cover_preview');
+
+    if (!dropZone || !fileInput || !form) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.background = '#eef';
+        });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.background = '';
+        });
+    });
+
+    dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+            const file = files[0];
+            if (file.type === "image/jpeg" || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+                fileInput.files = files;
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    if (preview) preview.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            } else if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    const img = new Image();
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob(function (blob) {
+                            if (!blob) {
+                                alert("Failed to convert image.");
+                                return;
+                            }
+                            if (preview) preview.src = canvas.toDataURL('image/jpeg');
+                            const uniqueName = file.name.replace(/\.[^/.]+$/, "") + "_" + Date.now() + ".jpg";
+                            const jpegFile = new File([blob], uniqueName, { type: "image/jpeg" });
+                            const dt = new DataTransfer();
+                            dt.items.add(jpegFile);
+                            fileInput.files = dt.files;
+                            const event = new Event('change', { bubbles: true });
+                            fileInput.dispatchEvent(event);
+                        }, 'image/jpeg', 0.92);
+                    };
+                    img.onerror = function () {
+                        alert("Failed to load image for conversion.");
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert("Only image files can be uploaded.");
+            }
+        }
+    });
 });
 
 function makeEAN13(input) {
-  let s = String(input);
-  const core9 = s.slice(0, 9);
-  if (!/^\d{9}$/.test(core9)) {
-    return false;
-  }
-  const ean12 = "978" + core9;
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    const digit = Number(ean12[i]);
-    sum += digit * ( (i % 2 === 0) ? 1 : 3 );
-  }
-  const checkDigit = (10 - (sum % 10)) % 10;
-  
-  return ean12 + String(checkDigit);
+    let s = String(input);
+    if (/^97[89]\d{10}$/.test(s) || /^2\d{12}$/.test(s)) {
+        return s;
+    }
+
+    const core9 = s.slice(0, 9);
+    if (/^\d{9}$/.test(core9) && s.length === 10) {
+        const ean12 = "978" + core9;
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            const digit = Number(ean12[i]);
+            sum += digit * ((i % 2 === 0) ? 1 : 3);
+        }
+        const checkDigit = (10 - (sum % 10)) % 10;
+        return ean12 + String(checkDigit);
+    }
+    return s;
 }
 
 async function fetchBookInfo() {
@@ -171,12 +299,12 @@ async function fetchBookInfo() {
     let isbn = isbnInput.value;
     const spnFetch = document.getElementById('spnBtnFetchBookInfo');
     const commentInput = document.getElementById('comment');
-    const isbnFormatted = makeEAN13(isbn); 
-    if(isbnFormatted!=isbn){
+    const isbnFormatted = makeEAN13(isbn);
+    if (isbnFormatted != isbn) {
         isbn = isbnFormatted;
         if (await transferToEditPage(isbn)) return;
         isbnInput.value = "";
-        if(!commentInput.value)commentInput.value=isbn;
+        if (!commentInput.value) commentInput.value = isbn;
         isbnInput.focus();
     }
     if (!isbnValidate(isbn)) {
@@ -358,3 +486,88 @@ async function returnBook() {
     }
 }
 
+async function addToNotion() {
+    const notionApiUrl = "/api/notion/add";
+
+    const isbn = document.getElementById('isbn').value;
+    const title = document.getElementById('title').value;
+    const reviewer = document.getElementById('itxName').value;
+    const review = document.getElementById('itxReview').value;
+
+    if (!reviewer) {
+        alert('Please enter your name.');
+        document.getElementById('itxName').focus();
+        return false;
+    }
+    if (!title) {
+        alert('Title must not be blank.');
+        document.getElementById('title').focus();
+        return false;
+    }
+    if (!review) {
+        alert('Please enter your review.');
+        document.getElementById('itxReview').focus();
+        return false;
+    }
+
+    const payload = { isbn, title, reviewer, review };
+
+    try {
+        const resp = await fetch(notionApiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+            alert("Review added to Notion successfully!");
+            window.location.reload()
+        } else {
+            const err = await resp.json();
+            alert("Failed to add to Notion: " + (err.description || resp.statusText));
+        }
+    } catch (e) {
+        alert("Error: " + e);
+    }
+}
+
+async function loadReviews(isbn) {
+    const tableBody = document.querySelector('#reviewTable tbody');
+    tableBody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    try {
+        const resp = await fetch(`/api/notion/get_review_by_isbn/${isbn}`);
+        if (!resp.ok) {
+            tableBody.innerHTML = '<tr><td colspan="3">Failed to load reviews</td></tr>';
+            return;
+        }
+        const data = await resp.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="3">No reviews found</td></tr>';
+            return;
+        }
+        tableBody.innerHTML = '';
+        data.forEach(entry => {
+            const props = entry.properties || {};
+            // Created Time
+            let reviewCreated = entry.created_time || '';
+            if (reviewCreated) {
+                // ISO8601 → YYYY-MM-DD HH:mm
+                const dt = new Date(reviewCreated);
+                reviewCreated = dt.toLocaleString();
+            }
+            // Reviewer
+            let reviewer = '';
+            if (props.Reviewer && props.Reviewer.select && props.Reviewer.select.name)
+                reviewer = props.Reviewer.select.name;
+            // Review
+            let review = '';
+            if (props.Review && props.Review.rich_text && props.Review.rich_text.length > 0)
+                review = props.Review.rich_text.map(rt => rt.plain_text).join('');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${reviewer} (${reviewCreated})</td><td>${review}</td>`;
+            tableBody.appendChild(tr);
+        });
+    } catch (e) {
+        tableBody.innerHTML = `<tr><td colspan="3">Error: ${e}</td></tr>`;
+    }
+}

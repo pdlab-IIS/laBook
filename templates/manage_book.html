@@ -7,31 +7,38 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='general.js') }}"></script>
     <script src="{{ url_for('static', filename='book_form.js') }}"></script>
-    <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/93e347c8ec.js" crossorigin="anonymous"></script>
     <!-- Font Awesome Free by @fontawesome 
        Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ 
        https://fontawesome.com/license/free -->
 </head>
 
 <body>
-    <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;"><i
-                class="fa-solid fa-left-long"></i></button>
+    <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
+        <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
+        </button>
         {% if mode == "edit" %}<i class="fas fa-book"></i> Edit / Borrow{% else %}<i class="fas fa-book-medical"></i>
         Add{% endif %}</h2>
     <!-- {% if error %} <div style="color:red;">Error: {{ error }}</div>{% endif %}-->
-    <div style="margin-left: 12px; margin-top: 15px;">
+    <div style="display: flex; align-items: flex-end; gap: 16px; margin-top:15px; margin-left:11px;">
         {% if mode == "edit" %}
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
             alt="No Image" style="max-height: min-content;">
+        <form id="coverUploadForm" enctype="multipart/form-data" style="display:inline; border: 2px dashed #bbb; padding: 8px; border-radius: 8px;">
+            <input type="file" id="coverFileInput" name="cover" accept=".jpg,.jpeg,image/jpeg" style="display:inline;">
+            <div id="coverDropZone" style="margin-top:4px; color:#888; font-size:0.9em;">
+        Drag & Drop image here
+    </div>
+        </form>
         {% else %}
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-medical-solid.svg') }}"
             alt="No Image" style="max-height: min-content;">
+        <button type="button" id="btnScanner" onclick="mobileScan()"><i class="fas fa-barcode" aria-hidden="true"></i>
+            Scanner</button>
         {% endif %}
     </div>
-    <button type="button" id="btnScanner" onclick="mobileScan()" {% if mode=="edit" %}style="display: none;" {% endif
-        %}><i class="fas fa-barcode" aria-hidden="true"></i> Scanner</button>
     <form method="post" id="manageBookForm" data-mode="{{ mode }}">
         <table class="book-form-table" aria-colspan="2">
             <tr>
@@ -73,7 +80,7 @@
                 </td>
             </tr>
             <tr>
-                <td><label for="comment"><i class="fa-solid fa-comment-dots"></i> Comment:</label></td>
+                <td><label for="comment"><i class="fa-solid fa-note-sticky"></i> Note:</label></td>
                 <td><input type="text" name="comment" id="comment" value="{{ book['comment'] if book else '' }}"></td>
             </tr>
             <tr style="display: none;">
@@ -91,12 +98,14 @@
     </form>
     <button type="button" id="btnDeleteBook" onclick="deleteBook()" class="delete-button" {% if mode !='edit'
         %}style="display:none;" {% endif %}><i class="fas fa-trash" aria-hidden="true"></i> Delete Book</button>
-    <button type="button" id="btnFetchBookInfo" onclick="fetchBookInfo()"><span id=spnBtnFetchBookInfo><i
+    <button type="button" id="btnFetchBookInfo" onclick="fetchBookInfo()" {% if mode =='edit'
+        %}style="display:none;" {% endif %}><span id=spnBtnFetchBookInfo><i
                 class="fas fa-globe" aria-hidden="true"></i></span> Get Online Biblio-info.</button>
     <button type="button" id="btnSubmitForm" onclick="updateBook()"><i class="fas fa-save" aria-hidden="true"></i>
         {% if mode
         == 'edit' %}Update{% else %}Add{% endif %} Book</button>
 
+    {% if mode == 'edit' %}<hr>{% endif %}
     <form id="formStatus">
         <table class="book-form-table" {% if mode !='edit' %}style="display:none;" {% endif %} aria-colspan="2">
             <tr>
@@ -119,7 +128,7 @@
 
             <tr>
                 <td>
-                    <label><i class="fa-solid fa-calendar-day"></i> From (UTC): </label>
+                    <label><i class="fa-solid fa-calendar-day"></i> From: </label>
                 </td>
                 <td>
                     <input type="text" id="itxTime" value="" disabled>
@@ -144,6 +153,44 @@
     <button type="button" id="btnReturnBook" onclick="returnBook()" {% if mode !='edit' %}style="display:none;" {% endif
         %}><i class="fa-solid fa-arrow-right-to-bracket"></i>
         Return Book</button>
+
+    {% if mode == 'edit' %}<hr>{% endif %}
+    <div id="reviewTableContainer" style="margin-top:30px;">
+        <h3 {% if mode !='edit' %}style="display:none;" {% endif %}><i class="fa-solid fa-comments"></i> Reviews from<a
+                href="https://www.notion.so/book-review-22c8cd0402be80fc8dc5e750b784f54d" target="_blank"><i
+                    class="fa-brands fa-notion"></i> pdlab
+                Notion</a>
+        </h3>
+        <table id="reviewTable" class="book-form-table" {% if mode !='edit' %}style="display:none;" {% endif %}
+            aria-colspan="2">
+            <thead>
+                <tr>
+                    <th>Reviewer</th>
+                    <th>Review</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- filled by js -->
+            </tbody>
+        </table>
+    </div>
+    <form id="formReview" {% if mode !='edit' %}style="display:none;" {% endif %}>
+        <table class="book-form-table" aria-colspan="2">
+            <tr>
+                <td>
+                    <label for="itxReview"><i class="fa-solid fa-pen-to-square"></i> Review:</label>
+                </td>
+                <td>
+                    <textarea id="itxReview" name="review" rows="5" style="width:98%; resize:vertical;"
+                        placeholder="Write your review here..."></textarea>
+                </td>
+            </tr>
+        </table>
+    </form>
+    <button type="button" id="btnAddToNotion" onclick="addToNotion()" {% if mode !='edit' %}style="display:none;" {%
+        endif %}>
+        <i class="fa-brands fa-notion"></i> Add Review to Notion
+    </button>
 </body>
 
 </html>

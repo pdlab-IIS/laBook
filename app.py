@@ -1,8 +1,10 @@
 #! /usr/bin/env python3
 
-import logging
-from logging.handlers import RotatingFileHandler
-import os, threading, time
+import os
+from logger_config import setup_logger
+
+logger = setup_logger()
+
 from flask import (
     Flask,
     send_from_directory,
@@ -12,31 +14,35 @@ from flask import (
     redirect
 )
 from flask_cors import CORS
-from db import close_connection, init_db, dbname
 from routes import register_blueprints
-
-log_handler = RotatingFileHandler(
-    "labook.log", maxBytes=5 * 1024 * 1024, backupCount=500, encoding="utf-8"
-)
-log_handler.setLevel(logging.INFO)
-log_handler.setFormatter(
-    logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
-)
-logging.basicConfig(level=logging.INFO, handlers=[log_handler, logging.StreamHandler()])
-logger = logging.getLogger(__name__)
-
-app = Flask(__name__)
+from routes.notion import bp as notion_bp; 
+from db import close_connection, init_db, dbname, get_db
+app = Flask(__name__, static_folder=None)
 
 register_blueprints(app)
+app.register_blueprint(notion_bp)
 
 @app.teardown_appcontext
 def teardown_db(exception):
     close_connection(exception)
 
+@app.route("/L", methods=["GET", "POST", "OPTIONS"])
+@app.route("/L/<location_code>", methods=["GET", "POST", "OPTIONS"])
+def scan_with_location(location_code=None):
+    if location_code:
+        db = get_db()
+        row = db.execute(
+            "SELECT shelf_id FROM Shelves WHERE shelf_code = ?", (location_code,)
+        ).fetchone()
+        if row:
+            return redirect(url_for("hello_world", shelf_id=row[0]))
+    return redirect(url_for("hello_world"))
 
 @app.route("/")
 def hello_world():
-    return render_template("index.html")
+    shelf_id = request.args.get('shelf_id', '')
+    initial_filter = f"shelf_id:{shelf_id}" if shelf_id else ""
+    return render_template("index.html", initial_filter=initial_filter)
 
 @app.route("/scan", methods=["GET", "POST", "OPTIONS"])
 @app.route("/scan/", methods=["GET", "POST", "OPTIONS"])
@@ -44,42 +50,31 @@ def hello_world():
 def scan(location_code=None):    
     return render_template("scan.html", location_code=location_code)
 
-@app.route("/L", methods=["GET", "POST", "OPTIONS"])
-@app.route("/L/<location_code>", methods=["GET", "POST", "OPTIONS"])
-def scan_with_location(location_code=None):
-    return redirect(url_for("books.manage_book_page", isbn=0, location_code_override=location_code))
-
-@app.route("/backup")
-def backup():
+def do_backup():
     if os.path.exists(dbname):
         import datetime, shutil
-
         backup_file = (
             dbname + datetime.datetime.now().strftime("_%Y%m%d-%H%M%S") + ".db"
         )
         shutil.copy(dbname, backup_file)
+        logger.info(f"Backup created: {backup_file}")
+        return backup_file
+    else:
+        logger.warning("Database file does not exist.")
+        return None
+
+@app.route("/backup")
+def backup():
+    backup_file = do_backup()
+    if backup_file:
         return f"Backup created: {backup_file}"
     else:
         return "Database file does not exist."
-
-
-def periodic_backup():
-    time.sleep(86400)
-    while True:
-        try:
-            with app.app_context():
-                backup()
-                logger.info("Periodic backup executed.")
-        except Exception as e:
-            logger.error(f"Periodic backup failed: {e}")
-
 
 @app.route("/initdb")
 def initdb():
     if app.debug:
         backup()
-        import shutil
-
         if os.path.exists(dbname):
             os.remove(dbname)
         init_db()
@@ -87,14 +82,24 @@ def initdb():
     else:
         return "Database initialization is only allowed in debug mode."
 
-
 @app.route("/covers/<filename>")
 def serve_cover(filename):
     covers_dir = "covers"
-    return send_from_directory(covers_dir, filename)
+    response = send_from_directory(covers_dir, filename)
+    response.headers["Cache-Control"] = "public, max-age=604800"
+    return response
 
+@app.route('/static/<filename>')
+def static(filename):
+    response = send_from_directory('static', filename)
+    if filename.endswith(('.js', '.css', '.html')):
+        if app.debug:
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=3600"
+    elif filename.endswith(('.mp3', '.jpg', '.jpeg', '.png', '.svg')):
+        response.headers["Cache-Control"] = "public, max-age=604800"
+    return response
 
 if __name__ == "__main__":
-    t = threading.Thread(target=periodic_backup, daemon=True)
-    t.start()
     app.run(host="0.0.0.0", port=5000, debug=True)
