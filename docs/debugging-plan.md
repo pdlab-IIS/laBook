@@ -36,13 +36,13 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | Python依存採取 | 実施済み。`requirements.txt`へRPiのversionを固定 |
 | 設定loader | 環境変数優先、`keys.py` fallbackの移行用`config.py`を追加 |
 | 秘密値template | 値を含まない`.env.example`を追加 |
-| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、DB修復、health/readinessの38件を追加 |
-| 隔離検証 | RPiの`/tmp`上で38 testsが成功。秘密値なしのFlask/subapp importも確認済み |
+| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、保持処理、logging、管理route非公開、DOM安全性、DB修復、health/readinessの50件を追加 |
+| 隔離検証 | RPiの`/tmp`上で50 testsが成功。Bash、Gunicorn、systemd unit/timer、journald drop-inも検証済み |
 | 外部API耐性 | connect/read timeout、書誌providerの部分障害継続、Notionの502/504変換を実装 |
 | 出版日 | `YYYY`、`YYYY-MM`、`YYYY-MM-DD`の正規化を実装 |
 | 棚作成 | localhostへの自己HTTPを廃止し、同一SQLite transaction内の処理へ変更 |
 | owner_id封じ込め | 新規schemaをNULL既定にし、値0をNULLへ変換。既存469件は未修復 |
-| app/subapp backup | `shutil.copy`を共通のSQLite online backup＋integrity checkへ置換 |
+| app/scheduled backup | `shutil.copy`を共通のSQLite online backup＋integrity checkへ置換 |
 | DB修復dry-run | 本番DBのread-only→memory copyで469 ownerと8 Loanを退避・修復し、477→0を確認 |
 | DB修復apply/rollback試験 | 検証済みsnapshotの`/tmp`コピーで成功。事前backupからの復元hashも元snapshotと一致 |
 | 過去backup復元調査 | 359/359個を読取成功。孤立ISBN 6件（active 2件を含む）の過去Bookは0件 |
@@ -50,6 +50,10 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | ヘルス診断 | 依存先へ接続しない`/healthz`とSQLite接続を確認する`/readyz`を実装 |
 | 再起動手順 | `Prod.sh`からport PIDへの`kill -9`と無関係なnginx/ngrok再起動を除去。systemdのactive状態とhealth/readinessを検証する方式へ変更 |
 | 運用設定 | 実機を基準にsystemd unitとnginx site設定を`deploy/`へ追加。subapp unitはアプリと同じvenvを使うよう変更 |
+| 日次backup | systemd oneshot＋timerを実装。毎日03:15 JST以降に実行し、新規`backups/daily`だけを90件・120日で保持（最新1件は必ず保護） |
+| ログ | アプリ・Gunicorn・subappをjournalへ集約。access logからqueryを除外し、unitごとのrate limitとhost全体の256MB・30日保持設定を追加 |
+| Web管理操作 | `/backup`と`/initdb`を公開routeから削除。既存DBを上書きしない初期化CLIへ置換 |
+| DOM安全性 | Notion review、書籍情報、棚コードを`innerHTML`へ渡さず、`textContent`とDOM APIで描画 |
 | 本番反映 | 未実施 |
 | off-host backup | 未実施。平文DBを複製せず、暗号化recipient確立後に実施する |
 | SOPS + age | SOPS 3.13.3はSHA-256検証済み。age 1.3.2は取得物を検証できず破棄したため、端末鍵とrecipientは未作成 |
@@ -57,6 +61,8 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 実機の`labook`、`labook-subapp`、nginx、ngrokはこの作業では再起動していない。
 
 DB修復の承認事項と実行手順は[`docs/database-repair.md`](database-repair.md)に分離した。
+日次backupの保持方針と本番導入手順は[`docs/backup-operations.md`](backup-operations.md)に分離した。
+ログの記録項目と移行確認手順は[`docs/logging-operations.md`](logging-operations.md)に分離した。
 
 ## 2. システム全体像
 
@@ -82,8 +88,10 @@ DB修復の承認事項と実行手順は[`docs/database-repair.md`](database-re
       └─ Notion API
 
 別プロセス: subapp.py
-      ├─ SQLiteファイルの日次コピー
       └─ Notionの新着レビューをSlackへ通知
+
+systemd timer: labook-backup.timer
+      └─ SQLite online backup + integrity check + local retention
 
 外部公開経路:
       ngrok + traffic policy → nginx :80
@@ -237,7 +245,7 @@ Shelvesへの不正参照、Loansのborrower/returnerへの不正参照は0件�
 - 最古: 2026-02-25
 - 最新: 2026-08-31
 - 保存数、保存期間、容量の上限なし
-- [`subapp.py`](../subapp.py)は稼働中のSQLiteファイルを`shutil.copy`でコピーしている
+- 調査開始時点の[`subapp.py`](../subapp.py)は稼働中のSQLiteファイルを`shutil.copy`でコピーしていた
 - 同一RPi、同一ファイルシステム上のバックアップであり、SDカード故障への耐性は確認できない
 
 現在確認したDBコピーは整合していたが、今後はSQLite Backup APIを使い、復元確認とオフホスト保管を組み合わせる。
@@ -293,9 +301,11 @@ portに対する直接の`kill -9`は通常手順から除外する。
 ### 6.6 P2: ログ
 
 - 書籍追加・更新時にリクエストデータ全体を記録している
-- Flask loggerのRotatingFileHandlerを複数Gunicorn workerから使用する構成
-- Gunicorn access/error logにrotation設定がない
+- 調査開始時点ではFlask loggerのRotatingFileHandlerを複数Gunicorn workerから使用する構成だった
+- 調査開始時点ではGunicorn access/error logにrotation設定がなかった
 - access logは調査時点で約21 MB
+
+開発branchではアプリ、Gunicorn、subappをsystemd journalへ集約し、queryを除外したaccess log形式、unitごとのrate limit、永続journalの256 MB・30日上限を実装済みである。本番のjournalは現在`Storage=volatile`であり、永続化設定はhost全体へ影響するため未配備である。
 
 コメント、利用者情報、外部API応答、tokenをログへ出さない。request ID、処理時間、結果、例外型などの診断情報だけを構造化して残す。
 
@@ -305,9 +315,9 @@ portに対する直接の`kill -9`は通常手順から除外する。
 - nginxはLANのport 80で待受けており、ngrok側のtraffic policyを経由しないアクセス経路がある
 - nginx CORS設定は`Access-Control-Allow-Origin: *`とcredentialsを同時指定している
 - CORS許可メソッドにUIが使うPUT/DELETEが含まれていない
-- Notion由来のreviewer/reviewを[`book_form.js`](../static/book_form.js)で`innerHTML`へ挿入している
-- `/backup`はHTTPから実行可能
-- `/initdb`はproductionではdebug判定で拒否されるが、運用用エンドポイントとして公開ルートに残っている
+- 調査開始時点ではNotion由来reviewやDB由来書籍情報をJavaScriptの`innerHTML`へ挿入していた（開発branchで安全なDOM操作へ変更済み）
+- 調査開始時点では`/backup`がHTTPから実行可能だった（開発branchでroute削除済み）
+- 調査開始時点では`/initdb`が公開ルートに残っていた（開発branchでroute削除し、上書き拒否のローカルCLIへ置換済み）
 
 実際の利用者・ネットワーク境界を確認し、nginxまたはアプリ側で認証・認可を統一する。外部文字列は`textContent`でDOMへ追加する。
 
@@ -371,9 +381,9 @@ portに対する直接の`kill -9`は通常手順から除外する。
 
 1. `kill -9`依存を廃止（`Prod.sh`で実装済み。本番未配備）
 2. subappも同じvenvと設定loaderを利用（unitを実装済み。本番未配備）
-3. 日次backupをsystemd timerへ移行
-4. backupの保存数、保存期間、オフホスト転送を設定
-5. access/error/application logをlogrotateまたはjournalへ統合
+3. 日次backupをsystemd timerへ移行（実装・隔離検証済み。本番未配備）
+4. backupの保存数、保存期間、オフホスト転送を設定（新規日次backupの90件・120日保持は実装済み。既存backup整理とoff-host転送は未実施）
+5. access/error/application logを上限付きjournalへ統合（実装・隔離検証済み。本番未配備）
 6. unit、nginx、Gunicorn設定をリポジトリ管理（systemd/nginxの現行baselineを追加済み。本番未配備）
 7. rollback手順を自動化
 
@@ -382,8 +392,8 @@ portに対する直接の`kill -9`は通常手順から除外する。
 1. LAN、学内proxy、ngrokそれぞれの利用者と認証境界を図示
 2. APIの認証・認可方式を決定
 3. CORSを必要なorigin/methodだけに限定
-4. HTML挿入を安全なDOM操作へ変更
-5. `/backup`、`/initdb`などの管理操作をWeb公開から外す
+4. HTML挿入を安全なDOM操作へ変更（実装・隔離検証済み。本番未配備）
+5. `/backup`、`/initdb`などの管理操作をWeb公開から外す（実装・隔離検証済み。本番未配備）
 6. file uploadの容量、実体MIME、保存名を検証
 7. secretsをログやエラー応答へ出さないテストを追加
 

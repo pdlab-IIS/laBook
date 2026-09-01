@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 
-import os
 import sqlite3
 from logger_config import setup_logger
 
@@ -18,8 +17,7 @@ from flask import (
 from flask_cors import CORS
 from routes import register_blueprints
 from routes.notion import bp as notion_bp; 
-from db import DATABASE, close_connection, init_db, get_db
-from db_backup import create_online_backup
+from db import close_connection, get_db
 app = Flask(__name__, static_folder=None)
 
 register_blueprints(app)
@@ -80,34 +78,6 @@ def hello_world():
 @app.route("/scan/<location_code>", methods=["GET", "POST", "OPTIONS"])
 def scan(location_code=None):    
     return render_template("scan.html", location_code=location_code)
-
-def do_backup():
-    if not os.path.exists(DATABASE):
-        logger.warning("Database file does not exist.")
-        return None
-
-    backup_file = create_online_backup(DATABASE)
-    logger.info("Backup created: %s", backup_file)
-    return str(backup_file)
-
-@app.route("/backup")
-def backup():
-    backup_file = do_backup()
-    if backup_file:
-        return f"Backup created: {backup_file}"
-    else:
-        return "Database file does not exist."
-
-@app.route("/initdb")
-def initdb():
-    if app.debug:
-        backup()
-        if os.path.exists(DATABASE):
-            os.remove(DATABASE)
-        init_db()
-        return "Database initialized!"
-    else:
-        return "Database initialization is only allowed in debug mode."
 
 @app.route("/covers/<filename>")
 def serve_cover(filename):

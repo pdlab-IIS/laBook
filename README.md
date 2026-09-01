@@ -220,8 +220,12 @@ labook/
    python app.py
    ```
 
-1. For a new disposable development database only, access `/initdb`. This
-   endpoint deletes and recreates the current database when debug mode is on.
+1. For a new disposable development database only, use the local maintenance
+   command below. It refuses to overwrite an existing file.
+
+   ```sh
+   python -m scripts.init_database --database /path/to/new-library.db
+   ```
 1. Add/Edit books at `/books/manage`
 1. Use the barcode scanner at `/scan/` for fast book registration.
 

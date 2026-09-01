@@ -1,5 +1,5 @@
 [Unit]
-Description=laBook subapp for backup and Slack notifications
+Description=laBook Slack notification scheduler
 Wants=network-online.target
 After=network-online.target
 
@@ -12,7 +12,10 @@ ExecStart=/home/pdlab/labook/venv/bin/python /home/pdlab/labook/subapp.py
 Restart=always
 RestartSec=5s
 StandardOutput=journal
-StandardError=inherit
+StandardError=journal
+SyslogIdentifier=labook-subapp
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=1000
 
 [Install]
 WantedBy=multi-user.target

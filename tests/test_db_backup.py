@@ -1,3 +1,4 @@
+import datetime
 import os
 import sqlite3
 import stat
@@ -5,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from db_backup import create_online_backup
+from db_backup import create_online_backup, prune_backups
 
 
 class OnlineBackupTests(unittest.TestCase):
@@ -48,6 +49,63 @@ class OnlineBackupTests(unittest.TestCase):
             missing_path = Path(temp_dir) / "missing.db"
             with self.assertRaises(FileNotFoundError):
                 create_online_backup(missing_path)
+
+    def test_prune_enforces_count_without_touching_unrelated_files(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            backup_dir = Path(temp_dir)
+            names = [
+                "library.db_20260901-030000-000000.db",
+                "library.db_20260831-030000-000000.db",
+                "library.db_20260830-030000-000000.db",
+                "library.db_20260829-030000-000000.db",
+            ]
+            for name in names:
+                (backup_dir / name).touch()
+            unrelated = backup_dir / "other.db_20200101-000000-000000.db"
+            unrelated.touch()
+
+            removed = prune_backups(
+                backup_dir,
+                "library.db",
+                keep_count=2,
+                max_age_days=120,
+                reference_time=datetime.datetime(2026, 9, 1, 12, 0),
+            )
+
+            self.assertEqual(
+                {path.name for path in removed},
+                set(names[2:]),
+            )
+            self.assertTrue((backup_dir / names[0]).exists())
+            self.assertTrue((backup_dir / names[1]).exists())
+            self.assertTrue(unrelated.exists())
+
+    def test_prune_enforces_age_but_preserves_newest_backup(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            backup_dir = Path(temp_dir)
+            newest = backup_dir / "library.db_20260101-030000-000000.db"
+            older = backup_dir / "library.db_20251231-030000-000000.db"
+            newest.touch()
+            older.touch()
+
+            removed = prune_backups(
+                backup_dir,
+                "library.db",
+                keep_count=90,
+                max_age_days=120,
+                reference_time=datetime.datetime(2026, 9, 1, 12, 0),
+            )
+
+            self.assertEqual(removed, [older.resolve()])
+            self.assertTrue(newest.exists())
+            self.assertFalse(older.exists())
+
+    def test_prune_rejects_a_policy_that_could_remove_every_backup(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaises(ValueError):
+                prune_backups(temp_dir, "library.db", keep_count=0)
+            with self.assertRaises(ValueError):
+                prune_backups(temp_dir, "library.db", max_age_days=0)
 
 
 if __name__ == "__main__":

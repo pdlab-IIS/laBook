@@ -12,7 +12,10 @@ ExecStart=/home/pdlab/labook/start_gunicorn.sh
 Restart=always
 RestartSec=5s
 StandardOutput=journal
-StandardError=inherit
+StandardError=journal
+SyslogIdentifier=labook
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=1000
 
 [Install]
 WantedBy=multi-user.target

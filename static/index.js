@@ -165,10 +165,15 @@ document.addEventListener('DOMContentLoaded', async function () {
             } else if (searchValue.startsWith(magicPrefix)) {
                 let locationCode = searchValue.split('/').pop();
                 lockModeLocation = locationCode;
-                spnLockMode.innerHTML = '<font color="red"><i class="fa-solid fa-location-pin-lock"></i> ' + locationCode + '</font>';
+                const lockLabel = document.createElement('span');
+                const lockIcon = document.createElement('i');
+                lockLabel.style.color = 'red';
+                lockIcon.className = 'fa-solid fa-location-pin-lock';
+                lockLabel.append(lockIcon, document.createTextNode(` ${locationCode}`));
+                spnLockMode.replaceChildren(lockLabel);
                 searchInput.value = '';
             } else {
-                spnLockMode.innerHTML = '&emsp;';
+                spnLockMode.textContent = '\u2003';
                 updateBooksTable();
             }
         }
@@ -296,7 +301,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
     }
 
-    tableBody.innerHTML = '';
+    tableBody.replaceChildren();
     pagedBooks.forEach((book, idx) => {
         const tr = document.createElement('tr');
         const shelfCellId = `shelf-cell-${requestId}-${idx}`;
@@ -304,21 +309,70 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
           ? (book.cover_image_path.startsWith('/') ? book.cover_image_path : `/${book.cover_image_path}`)
           : '/static/book-solid.svg';
 
-        tr.innerHTML = `
-            <td class="clickable-cover" style="cursor:pointer;">
-                <img src="${coverSrc}" alt="Cover Image" style="max-width: 60px; max-height: 100px;" />
-            </td>
-            <td class="clickable-title" style="cursor:pointer;"><a class='book-title'>${book.title || ''}</a></td>
-            <td class="searchable-author" style="cursor:pointer">${book.author || ''}</td>
-            <td class="searchable-publisher" style="cursor:pointer">${book.publisher || ''}</td>
-            <td class="searchable-publication-date">${book.publication_date || ''}</td>
-            <td class="searchable-shelf" id="${shelfCellId}" style="cursor:pointer">
-                ${book.shelf_id && shelfCache[book.shelf_id]
-                    ? shelfCache[book.shelf_id]
-                    : '<i class="fa-solid fa-circle-question"></i>'}
-            </td>
-            ${book.status ? `<td class="searchable-borrower">${book.status}</td>` : `<td><i class="fa-solid fa-check"></i></td>`}
-        `;
+        const coverCell = document.createElement('td');
+        coverCell.className = 'clickable-cover';
+        coverCell.style.cursor = 'pointer';
+        const coverImage = document.createElement('img');
+        coverImage.src = coverSrc;
+        coverImage.alt = 'Cover Image';
+        coverImage.style.maxWidth = '60px';
+        coverImage.style.maxHeight = '100px';
+        coverCell.appendChild(coverImage);
+
+        const titleCell = document.createElement('td');
+        titleCell.className = 'clickable-title';
+        titleCell.style.cursor = 'pointer';
+        const title = document.createElement('a');
+        title.className = 'book-title';
+        title.textContent = book.title || '';
+        titleCell.appendChild(title);
+
+        const authorCell = document.createElement('td');
+        authorCell.className = 'searchable-author';
+        authorCell.style.cursor = 'pointer';
+        authorCell.textContent = book.author || '';
+
+        const publisherCell = document.createElement('td');
+        publisherCell.className = 'searchable-publisher';
+        publisherCell.style.cursor = 'pointer';
+        publisherCell.textContent = book.publisher || '';
+
+        const publicationCell = document.createElement('td');
+        publicationCell.className = 'searchable-publication-date';
+        publicationCell.textContent = book.publication_date || '';
+
+        const shelfCell = document.createElement('td');
+        shelfCell.className = 'searchable-shelf';
+        shelfCell.id = shelfCellId;
+        shelfCell.style.cursor = 'pointer';
+        if (book.shelf_id && shelfCache[book.shelf_id]) {
+            shelfCell.textContent = shelfCache[book.shelf_id];
+        } else {
+            const unknownShelfIcon = document.createElement('i');
+            unknownShelfIcon.className = 'fa-solid fa-circle-question';
+            shelfCell.appendChild(unknownShelfIcon);
+        }
+
+        const statusCell = document.createElement('td');
+        statusCell.className = 'clickable-status';
+        if (book.status) {
+            statusCell.classList.add('searchable-borrower');
+            statusCell.textContent = book.status;
+        } else {
+            const availableIcon = document.createElement('i');
+            availableIcon.className = 'fa-solid fa-check';
+            statusCell.appendChild(availableIcon);
+        }
+
+        tr.append(
+            coverCell,
+            titleCell,
+            authorCell,
+            publisherCell,
+            publicationCell,
+            shelfCell,
+            statusCell
+        );
         tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
             if (book.isbn) {
                 window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
