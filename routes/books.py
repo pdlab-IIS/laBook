@@ -10,7 +10,7 @@ from flask import (
 )
 from db import get_db
 import fetch_book_info
-import logging, os
+import logging, os, sqlite3
 from datetime import datetime
 
 bp = Blueprint("books", __name__, url_prefix="/books")
@@ -164,7 +164,7 @@ def get_book_dict(isbn):
 
 @bp.route("", methods=["POST"])
 def add_book():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     required = ["isbn", "title"]
     if not all(k in data for k in required):
         abort(400, description="Missing required fields")
@@ -193,10 +193,11 @@ def add_book():
             ),
         )
         db.commit()
-        logger.info(f"Book added: {data}")
-    except Exception:
-        abort(409, description=Exception)
-        logger.error(f"Failed to add book: {data}")
+        logger.info("Book added: isbn=%s", data["isbn"])
+    except sqlite3.IntegrityError:
+        db.rollback()
+        logger.warning("Book insert rejected by integrity constraint")
+        abort(409, description="Book references invalid or duplicate data")
     return jsonify({"message": "Book added"}), 201
 
 
@@ -231,7 +232,7 @@ def update_book(isbn):
         ),
     )
     db.commit()
-    logger.info(f"Book updated: {data}")
+    logger.info("Book updated: isbn=%s", isbn)
     return jsonify({"message": "Book updated"})
 
 
@@ -257,7 +258,7 @@ def move_book(isbn):
         ),
     )
     db.commit()
-    logger.info(f"Book moved: {data}")
+    logger.info("Book moved: isbn=%s", isbn)
     return jsonify({"message": "Book updated"})
 
 

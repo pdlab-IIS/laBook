@@ -16,6 +16,8 @@ OWNER_REPORT = "report"
 OWNER_ARCHIVE_NULL = "archive-null"
 LOAN_REPORT = "report"
 LOAN_ARCHIVE_DELETE = "archive-delete"
+ACTIVE_LOAN_REPORT = "report"
+ACTIVE_LOAN_CREATE_INDEX = "create-unique-index"
 
 
 class RepairPolicyError(RuntimeError):
@@ -32,8 +34,14 @@ class DatabaseAudit:
     users: int
     loans: int
     zero_owner_ids: int
+    blank_owner_ids: int
     missing_owner_ids: int
     orphan_loans: int
+    active_orphan_loans: int
+    active_loans: int
+    duplicate_active_isbns: int
+    null_loan_isbns: int
+    active_loan_unique_index: bool
     foreign_key_violations: int
     foreign_key_violations_by_relation: dict[str, int]
     archived_book_owners: int
@@ -41,7 +49,7 @@ class DatabaseAudit:
 
     @property
     def invalid_owner_ids(self):
-        return self.zero_owner_ids + self.missing_owner_ids
+        return self.zero_owner_ids + self.blank_owner_ids + self.missing_owner_ids
 
     def to_dict(self):
         result = asdict(self)
@@ -62,11 +70,26 @@ def _table_exists(connection, table_name):
     )
 
 
+def _index_exists(connection, index_name):
+    return bool(
+        connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?",
+            (index_name,),
+        ).fetchone()
+    )
+
+
 def audit_database(connection):
     """Return aggregate integrity information without exposing book/user data."""
     zero_owner_ids = _count(
         connection,
         "SELECT COUNT(*) FROM Books WHERE owner_id = 0",
+    )
+    blank_owner_ids = _count(
+        connection,
+        """SELECT COUNT(*) FROM Books
+           WHERE owner_id IS NOT NULL
+             AND TRIM(CAST(owner_id AS TEXT)) = ''""",
     )
     missing_owner_ids = _count(
         connection,
@@ -74,6 +97,7 @@ def audit_database(connection):
            FROM Books AS book
            WHERE book.owner_id IS NOT NULL
              AND book.owner_id <> 0
+             AND TRIM(CAST(book.owner_id AS TEXT)) <> ''
              AND NOT EXISTS (
                  SELECT 1 FROM Users AS user
                  WHERE user.user_id = book.owner_id
@@ -112,8 +136,40 @@ def audit_database(connection):
         users=_count(connection, "SELECT COUNT(*) FROM Users"),
         loans=_count(connection, "SELECT COUNT(*) FROM Loans"),
         zero_owner_ids=zero_owner_ids,
+        blank_owner_ids=blank_owner_ids,
         missing_owner_ids=missing_owner_ids,
         orphan_loans=orphan_loans,
+        active_orphan_loans=_count(
+            connection,
+            """SELECT COUNT(*)
+               FROM Loans AS loan
+               WHERE loan.return_date IS NULL
+                 AND NOT EXISTS (
+                     SELECT 1 FROM Books AS book WHERE book.isbn = loan.isbn
+                 )""",
+        ),
+        active_loans=_count(
+            connection,
+            "SELECT COUNT(*) FROM Loans WHERE return_date IS NULL",
+        ),
+        duplicate_active_isbns=_count(
+            connection,
+            """SELECT COUNT(*) FROM (
+                   SELECT isbn
+                   FROM Loans
+                   WHERE return_date IS NULL
+                   GROUP BY isbn
+                   HAVING COUNT(*) > 1
+               )""",
+        ),
+        null_loan_isbns=_count(
+            connection,
+            "SELECT COUNT(*) FROM Loans WHERE isbn IS NULL",
+        ),
+        active_loan_unique_index=_index_exists(
+            connection,
+            "one_active_loan_per_isbn",
+        ),
         foreign_key_violations=len(violations),
         foreign_key_violations_by_relation=dict(sorted(relation_counts.items())),
         archived_book_owners=archived_book_owners,
@@ -144,6 +200,7 @@ def _archive_and_null_invalid_owners(connection):
                book.owner_id,
                CASE
                    WHEN book.owner_id = 0 THEN 'zero_sentinel'
+                   WHEN TRIM(CAST(book.owner_id AS TEXT)) = '' THEN 'blank_value'
                    ELSE 'missing_user'
                END
            FROM Books AS book
@@ -214,10 +271,20 @@ def _archive_and_delete_orphan_loans(connection):
     return deleted
 
 
+def _create_active_loan_unique_index(connection):
+    existed = _index_exists(connection, "one_active_loan_per_isbn")
+    connection.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS one_active_loan_per_isbn
+           ON Loans(isbn) WHERE return_date IS NULL"""
+    )
+    return 0 if existed else 1
+
+
 def _run_repair_transaction(
     connection,
     owner_policy,
     orphan_loan_policy,
+    active_loan_policy,
     *,
     commit,
     require_clean,
@@ -234,6 +301,10 @@ def _run_repair_transaction(
         if orphan_loan_policy == LOAN_ARCHIVE_DELETE:
             loan_changes = _archive_and_delete_orphan_loans(connection)
 
+        index_changes = 0
+        if active_loan_policy == ACTIVE_LOAN_CREATE_INDEX:
+            index_changes = _create_active_loan_unique_index(connection)
+
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
         if integrity != "ok":
             raise RepairValidationError(f"Integrity check failed: {integrity}")
@@ -248,6 +319,7 @@ def _run_repair_transaction(
         changes = {
             "book_owners_archived_and_nullified": owner_changes,
             "orphan_loans_archived_and_deleted": loan_changes,
+            "active_loan_unique_index_created": index_changes,
         }
         if commit:
             connection.commit()
@@ -263,7 +335,12 @@ def _connect_read_only(database_path):
     return sqlite3.connect(f"{database_path.as_uri()}?mode=ro", uri=True)
 
 
-def _preview(database_path, owner_policy, orphan_loan_policy):
+def _preview(
+    database_path,
+    owner_policy,
+    orphan_loan_policy,
+    active_loan_policy,
+):
     source = _connect_read_only(database_path)
     preview = sqlite3.connect(":memory:")
     try:
@@ -272,6 +349,7 @@ def _preview(database_path, owner_policy, orphan_loan_policy):
             preview,
             owner_policy,
             orphan_loan_policy,
+            active_loan_policy,
             commit=False,
             require_clean=False,
         )
@@ -286,6 +364,8 @@ def repair_database(
     apply=False,
     owner_policy=OWNER_REPORT,
     orphan_loan_policy=LOAN_REPORT,
+    active_loan_policy=ACTIVE_LOAN_REPORT,
+    confirm_archive_active_loans=False,
     backup_dir=None,
 ):
     """Preview or apply a repair and return a JSON-serializable report."""
@@ -299,8 +379,21 @@ def repair_database(
     finally:
         source.close()
 
+    if (
+        before.duplicate_active_isbns
+        and active_loan_policy == ACTIVE_LOAN_CREATE_INDEX
+    ):
+        raise RepairPolicyError(
+            "Duplicate active loans exist; resolve them before creating the unique index"
+        )
+
     if not apply:
-        projected, changes = _preview(path, owner_policy, orphan_loan_policy)
+        projected, changes = _preview(
+            path,
+            owner_policy,
+            orphan_loan_policy,
+            active_loan_policy,
+        )
         return {
             "mode": "dry-run",
             "database": str(path),
@@ -308,6 +401,7 @@ def repair_database(
             "policies": {
                 "invalid_book_owner": owner_policy,
                 "orphan_loan": orphan_loan_policy,
+                "active_loan": active_loan_policy,
             },
             "before": before.to_dict(),
             "projected": projected.to_dict(),
@@ -321,6 +415,15 @@ def repair_database(
     if before.orphan_loans and orphan_loan_policy != LOAN_ARCHIVE_DELETE:
         raise RepairPolicyError(
             "Orphan loans exist; explicitly select --orphan-loan-policy archive-delete"
+        )
+    if (
+        before.active_orphan_loans
+        and orphan_loan_policy == LOAN_ARCHIVE_DELETE
+        and not confirm_archive_active_loans
+    ):
+        raise RepairPolicyError(
+            f"{before.active_orphan_loans} active orphan loan(s) would be archived; "
+            "explicitly confirm --confirm-archive-active-loans"
         )
 
     destination_dir = (
@@ -337,6 +440,7 @@ def repair_database(
                 connection,
                 owner_policy,
                 orphan_loan_policy,
+                active_loan_policy,
                 commit=True,
                 require_clean=True,
             )
@@ -355,6 +459,8 @@ def repair_database(
         "policies": {
             "invalid_book_owner": owner_policy,
             "orphan_loan": orphan_loan_policy,
+            "active_loan": active_loan_policy,
+            "archive_active_loans_confirmed": confirm_archive_active_loans,
         },
         "before": before.to_dict(),
         "after": after.to_dict(),
@@ -380,6 +486,12 @@ def _build_parser():
         help="How to handle Loans rows whose book is missing",
     )
     parser.add_argument(
+        "--active-loan-policy",
+        choices=(ACTIVE_LOAN_REPORT, ACTIVE_LOAN_CREATE_INDEX),
+        default=ACTIVE_LOAN_REPORT,
+        help="Whether to create the one-active-loan-per-ISBN unique index",
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="Apply the selected policies; otherwise use an in-memory dry-run",
@@ -388,6 +500,11 @@ def _build_parser():
         "--confirm-services-stopped",
         action="store_true",
         help="Confirm all processes that write this database have been stopped",
+    )
+    parser.add_argument(
+        "--confirm-archive-active-loans",
+        action="store_true",
+        help="Confirm that active orphan loans may be moved out of Loans",
     )
     parser.add_argument(
         "--backup-dir",
@@ -408,6 +525,8 @@ def main(argv=None):
             apply=args.apply,
             owner_policy=args.owner_policy,
             orphan_loan_policy=args.orphan_loan_policy,
+            active_loan_policy=args.active_loan_policy,
+            confirm_archive_active_loans=args.confirm_archive_active_loans,
             backup_dir=args.backup_dir,
         )
     except (FileNotFoundError, RepairPolicyError, RepairValidationError) as exc:

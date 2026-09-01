@@ -36,8 +36,8 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | Python依存採取 | 実施済み。`requirements.txt`へRPiのversionを固定 |
 | 設定loader | 環境変数優先、`keys.py` fallbackの移行用`config.py`を追加 |
 | 秘密値template | 値を含まない`.env.example`を追加 |
-| 自動テスト | 設定、外部API、Notion、Slack、Books、online backup、DB修復の23件を追加 |
-| 隔離検証 | RPiの`/tmp`上で構文検査、23 tests＋11 subtests、秘密値なしのFlask/subapp importが成功 |
+| 自動テスト | 設定、外部API、Notion、Slack、Books、Loans、online backup、DB修復の35件を追加 |
+| 隔離検証 | RPiの`/tmp`上で構文検査、35 tests＋14 subtests、秘密値なしのFlask/subapp importが成功 |
 | 外部API耐性 | connect/read timeout、書誌providerの部分障害継続、Notionの502/504変換を実装 |
 | 出版日 | `YYYY`、`YYYY-MM`、`YYYY-MM-DD`の正規化を実装 |
 | 棚作成 | localhostへの自己HTTPを廃止し、同一SQLite transaction内の処理へ変更 |
@@ -45,6 +45,8 @@ laBookは現在稼働しており、直ちに停止につながるCPU、メモ�
 | app/subapp backup | `shutil.copy`を共通のSQLite online backup＋integrity checkへ置換 |
 | DB修復dry-run | 本番DBのread-only→memory copyで469 ownerと8 Loanを退避・修復し、477→0を確認 |
 | DB修復apply/rollback試験 | 検証済みsnapshotの`/tmp`コピーで成功。事前backupからの復元hashも元snapshotと一致 |
+| 過去backup復元調査 | 359/359個を読取成功。孤立ISBN 6件（active 2件を含む）の過去Bookは0件 |
+| 貸出整合性 | foreign keys、5秒busy timeout、貸出・返却transaction、未返却Loanの重複防止を実装 |
 | 本番反映 | 未実施 |
 | off-host backup | 未実施。平文DBを複製せず、暗号化recipient確立後に実施する |
 | SOPS + age | SOPS 3.13.3はSHA-256検証済み。age 1.3.2は取得物を検証できず破棄したため、端末鍵とrecipientは未作成 |
@@ -213,11 +215,12 @@ Booksの`owner_id`分布:
 | NULL | 526 |
 | 0 | 375 |
 | 現在のUsersに存在するID | 0 |
-| 0以外だがUsersに存在しないID | 94 |
+| 空文字 | 94 |
+| 0・空文字以外でUsersに存在しないID | 0 |
 
 Shelvesへの不正参照、Loansのborrower/returnerへの不正参照は0件だった。
 
-原因は、SQLite接続時に`PRAGMA foreign_keys=ON`を設定していないことと、Booksの`owner_id`既定値が0であることが中心と考えられる。ただし、94件の欠落IDと8件の孤立Loanをどう扱うかはデータの意味を確認して決める必要がある。
+原因は、SQLite接続時に`PRAGMA foreign_keys=ON`を設定していないことと、Booksの`owner_id`既定値が0であることが中心と考えられる。追加調査により残り94件は欠落IDではなく空文字と判明した。孤立Loan 8件のうち2件は未返却であり、どう扱うかはデータの意味を確認して決める必要がある。
 
 制約を直ちに有効化すると、既存データや現行書き込みが失敗する可能性がある。必ずバックアップ、分類、修復、dry-runの後に有効化する。
 
@@ -240,7 +243,7 @@ Shelvesへの不正参照、Loansのborrower/returnerへの不正参照は0件�
 - [`db.py`](../db.py)の各接続で外部キー制約が有効化されていない
 - `owner_id DEFAULT 0`と実在Usersの間に意味上の不一致がある
 - 書籍削除後もLoansが残り得る
-- 同一ISBNに複数の未返却Loanを作ることをDB/APIが防いでいない
+- 調査開始時点では、同一ISBNに複数の未返却Loanを作ることをDB/APIが防いでいなかった
 - 書籍更新、返却、新規貸出が一連のUI操作に依存し、サーバー側では原子的でない
 
 ### 6.2 P1: 外部API障害

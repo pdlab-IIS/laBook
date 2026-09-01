@@ -1,12 +1,14 @@
 #! /usr/bin/env python3
 
 import os
+import sqlite3
 from logger_config import setup_logger
 
 logger = setup_logger()
 
 from flask import (
     Flask,
+    jsonify,
     send_from_directory,
     render_template,
     request,
@@ -22,6 +24,17 @@ app = Flask(__name__, static_folder=None)
 
 register_blueprints(app)
 app.register_blueprint(notion_bp)
+
+
+@app.errorhandler(sqlite3.IntegrityError)
+def handle_database_integrity_error(error):
+    get_db().rollback()
+    logger.warning(
+        "Database integrity constraint rejected request: path=%s error=%s",
+        request.path,
+        type(error).__name__,
+    )
+    return jsonify({"description": "Database integrity constraint rejected request"}), 409
 
 @app.teardown_appcontext
 def teardown_db(exception):

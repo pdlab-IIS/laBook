@@ -6,11 +6,23 @@ dbname = 'library.db'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, dbname)
+BUSY_TIMEOUT_MS = 5000
+
+
+def connect_database(database_path=DATABASE):
+    """Open an application connection with integrity enforcement enabled."""
+    connection = sqlite3.connect(
+        database_path,
+        timeout=BUSY_TIMEOUT_MS / 1000,
+    )
+    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
+    return connection
 
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
+        db = g._database = connect_database(DATABASE)
     return db
 
 def close_connection(exception):
@@ -44,8 +56,8 @@ def init_db():
         comment TEXT,
         shelf_id INTEGER,
         updatedtime TEXT DEFAULT (CURRENT_TIMESTAMP),
-        FOREIGN KEY(owner_id) REFERENCES Users(user_id),
-        FOREIGN KEY(shelf_id) REFERENCES Shelves(shelf_id)
+        FOREIGN KEY(owner_id) REFERENCES Users(user_id) ON DELETE RESTRICT,
+        FOREIGN KEY(shelf_id) REFERENCES Shelves(shelf_id) ON DELETE RESTRICT
     );
     CREATE TABLE IF NOT EXISTS Loans (
         loan_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,10 +67,12 @@ def init_db():
         loan_date TEXT NOT NULL,
         due_date TEXT,
         return_date TEXT,
-        FOREIGN KEY(isbn) REFERENCES Books(isbn),
-        FOREIGN KEY(borrower_id) REFERENCES Users(user_id),
-        FOREIGN KEY(returner_id) REFERENCES Users(user_id)
+        FOREIGN KEY(isbn) REFERENCES Books(isbn) ON DELETE RESTRICT,
+        FOREIGN KEY(borrower_id) REFERENCES Users(user_id) ON DELETE RESTRICT,
+        FOREIGN KEY(returner_id) REFERENCES Users(user_id) ON DELETE RESTRICT
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS one_active_loan_per_isbn
+    ON Loans(isbn) WHERE return_date IS NULL;
     CREATE TRIGGER IF NOT EXISTS update_books_updatedtime
     AFTER UPDATE ON Books
     FOR EACH ROW

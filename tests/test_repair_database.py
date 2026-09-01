@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from scripts.repair_database import (
+    ACTIVE_LOAN_CREATE_INDEX,
     LOAN_ARCHIVE_DELETE,
     OWNER_ARCHIVE_NULL,
     RepairPolicyError,
@@ -60,6 +61,7 @@ class RepairDatabaseTest(unittest.TestCase):
                 (100, "Valid owner", 1, 1),
                 (101, "Zero owner", 0, 1),
                 (102, "Missing owner", 99, 1),
+                (103, "Blank owner", "", 1),
             ],
         )
         connection.executemany(
@@ -82,16 +84,24 @@ class RepairDatabaseTest(unittest.TestCase):
             self.database,
             owner_policy=OWNER_ARCHIVE_NULL,
             orphan_loan_policy=LOAN_ARCHIVE_DELETE,
+            active_loan_policy=ACTIVE_LOAN_CREATE_INDEX,
         )
 
         self.assertEqual(report["mode"], "dry-run")
-        self.assertEqual(report["before"]["foreign_key_violations"], 3)
+        self.assertEqual(report["before"]["foreign_key_violations"], 4)
+        self.assertEqual(report["before"]["blank_owner_ids"], 1)
+        self.assertEqual(report["before"]["active_loans"], 1)
+        self.assertEqual(report["before"]["active_orphan_loans"], 1)
+        self.assertEqual(report["before"]["duplicate_active_isbns"], 0)
+        self.assertEqual(report["before"]["null_loan_isbns"], 0)
         self.assertEqual(report["projected"]["foreign_key_violations"], 0)
+        self.assertTrue(report["projected"]["active_loan_unique_index"])
         self.assertEqual(
             report["changes"],
             {
-                "book_owners_archived_and_nullified": 2,
+                "book_owners_archived_and_nullified": 3,
                 "orphan_loans_archived_and_deleted": 1,
+                "active_loan_unique_index_created": 1,
             },
         )
         self.assertEqual(self.database.read_bytes(), original)
@@ -110,20 +120,23 @@ class RepairDatabaseTest(unittest.TestCase):
             apply=True,
             owner_policy=OWNER_ARCHIVE_NULL,
             orphan_loan_policy=LOAN_ARCHIVE_DELETE,
+            active_loan_policy=ACTIVE_LOAN_CREATE_INDEX,
+            confirm_archive_active_loans=True,
             backup_dir=backup_dir,
         )
 
         self.assertEqual(report["mode"], "apply")
         self.assertEqual(report["after"]["foreign_key_violations"], 0)
-        self.assertEqual(report["after"]["archived_book_owners"], 2)
+        self.assertEqual(report["after"]["archived_book_owners"], 3)
         self.assertEqual(report["after"]["archived_orphan_loans"], 1)
+        self.assertTrue(report["after"]["active_loan_unique_index"])
 
         backup = Path(report["backup"])
         self.assertTrue(backup.is_file())
         backup_connection = sqlite3.connect(backup)
         self.assertEqual(
             audit_database(backup_connection).foreign_key_violations,
-            3,
+            4,
         )
         backup_connection.close()
 
@@ -131,13 +144,28 @@ class RepairDatabaseTest(unittest.TestCase):
         owners = connection.execute(
             "SELECT isbn, owner_id FROM Books ORDER BY isbn"
         ).fetchall()
-        self.assertEqual(owners, [(100, 1), (101, None), (102, None)])
+        self.assertEqual(
+            owners,
+            [(100, 1), (101, None), (102, None), (103, None)],
+        )
         self.assertEqual(connection.execute("SELECT COUNT(*) FROM Loans").fetchone()[0], 1)
         connection.close()
 
     def test_apply_requires_explicit_policies(self):
         with self.assertRaises(RepairPolicyError):
             repair_database(self.database, apply=True)
+        self.assertFalse((self.root / "backups").exists())
+
+    def test_apply_requires_confirmation_for_active_orphan_loans(self):
+        with self.assertRaises(RepairPolicyError) as caught:
+            repair_database(
+                self.database,
+                apply=True,
+                owner_policy=OWNER_ARCHIVE_NULL,
+                orphan_loan_policy=LOAN_ARCHIVE_DELETE,
+                active_loan_policy=ACTIVE_LOAN_CREATE_INDEX,
+            )
+        self.assertIn("active orphan loan", str(caught.exception))
         self.assertFalse((self.root / "backups").exists())
 
     def test_unhandled_violation_rolls_back_all_changes(self):
@@ -152,6 +180,8 @@ class RepairDatabaseTest(unittest.TestCase):
                 apply=True,
                 owner_policy=OWNER_ARCHIVE_NULL,
                 orphan_loan_policy=LOAN_ARCHIVE_DELETE,
+                active_loan_policy=ACTIVE_LOAN_CREATE_INDEX,
+                confirm_archive_active_loans=True,
                 backup_dir=self.root / "rollback-backup",
             )
         self.assertIn("pre-migration backup", str(caught.exception))
