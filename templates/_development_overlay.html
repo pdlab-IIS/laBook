@@ -1,0 +1,15 @@
+{% if is_development %}
+<aside id="developmentEnvironmentOverlay" class="development-environment-overlay" aria-label="開発環境の表示設定">
+    <div class="development-environment-overlay__heading">
+        <span class="development-environment-overlay__badge">DEV</span>
+        <span>開発環境</span>
+    </div>
+    <div class="development-environment-overlay__controls" role="group" aria-label="プレビュー表示モード">
+        <button type="button" data-development-preview-mode="sp700" aria-pressed="false">SP 700px</button>
+        <button type="button" data-development-preview-mode="pc" aria-pressed="false">PC 固定</button>
+        <button type="button" data-development-preview-mode="device" aria-pressed="false">デバイス依存</button>
+    </div>
+    <span id="developmentPreviewDescription" class="development-environment-overlay__description" aria-live="polite"></span>
+</aside>
+<script src="{{ url_for('static', filename='development_preview.js') }}"></script>
+{% endif %}

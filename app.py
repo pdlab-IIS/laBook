@@ -24,6 +24,12 @@ register_blueprints(app)
 app.register_blueprint(notion_bp)
 
 
+@app.context_processor
+def inject_runtime_environment():
+    """Expose non-secret runtime flags to every rendered page."""
+    return {"is_development": app.debug}
+
+
 @app.route("/healthz")
 def healthz():
     """Cheap liveness probe that does not touch downstream dependencies."""

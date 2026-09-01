@@ -325,3 +325,137 @@ td {
     width: 90%;
     max-width: 1200px;
 }
+
+/* -------------------------------------- */
+/* Development preview                    */
+/* -------------------------------------- */
+.development-environment-overlay {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 10000;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: center;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(25, 28, 33, 0.94);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    color: #f7f7f7;
+    font: 600 12px/1.2 Arial, sans-serif;
+    backdrop-filter: blur(8px);
+}
+
+.development-environment-overlay__heading,
+.development-environment-overlay__controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.development-environment-overlay__badge {
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: #f4b942;
+    color: #242424;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+}
+
+.development-environment-overlay__controls button {
+    width: auto;
+    min-width: 42px;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid #59616d;
+    border-radius: 7px;
+    background: transparent;
+    color: #d9dde3;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.development-environment-overlay__controls button:hover {
+    background: #3b424c;
+}
+
+.development-environment-overlay__controls button[aria-pressed="true"] {
+    border-color: #f4b942;
+    background: #f4b942;
+    color: #242424;
+}
+
+.development-environment-overlay__description {
+    grid-column: 1 / -1;
+    color: #aeb5bf;
+    font-size: 10px;
+    font-weight: 400;
+    text-align: right;
+}
+
+html[data-development-preview-mode="sp700"] body {
+    width: 700px;
+    min-width: 700px;
+    min-height: min(844px, calc(100vh - 32px));
+    margin: 16px auto;
+    padding: 10px;
+    outline: 4px solid #333943;
+    border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+    font-size: 2.5rem;
+    overflow-x: auto;
+}
+
+html[data-development-preview-mode="sp700"] .content-box {
+    padding: 10px;
+    margin: 10px;
+}
+
+html[data-development-preview-mode="sp700"] input[type="text"],
+html[data-development-preview-mode="sp700"] input[type="number"],
+html[data-development-preview-mode="sp700"] input[type="file"],
+html[data-development-preview-mode="sp700"] input[type="date"],
+html[data-development-preview-mode="sp700"] select {
+    font-size: 2rem;
+}
+
+html[data-development-preview-mode="sp700"] body > button,
+html[data-development-preview-mode="sp700"] body > form button,
+html[data-development-preview-mode="sp700"] body > h2 button {
+    width: 100%;
+    font-size: 2.5rem;
+}
+
+html[data-development-preview-mode="sp700"] table {
+    width: 100%;
+    margin-top: 15px;
+    overflow-x: auto;
+    font-size: 2rem;
+}
+
+html[data-development-preview-mode="pc"] body {
+    width: 1180px;
+    min-width: 1180px;
+    max-width: none;
+    margin: 20px auto;
+    padding: 0;
+    font-size: 1rem;
+}
+
+@media (max-width: 1000px) {
+    html[data-development-preview-mode="pc"] input[type="text"],
+    html[data-development-preview-mode="pc"] input[type="number"],
+    html[data-development-preview-mode="pc"] input[type="file"],
+    html[data-development-preview-mode="pc"] input[type="date"],
+    html[data-development-preview-mode="pc"] select,
+    html[data-development-preview-mode="pc"] button,
+    html[data-development-preview-mode="pc"] table {
+        width: auto;
+        font-size: 1rem;
+    }
+}
