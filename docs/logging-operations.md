@@ -2,9 +2,9 @@
 
 ## Status
 
-The application, Gunicorn, and subapp are configured to write to stdout or
-stderr for collection by systemd-journald. The configuration is verified in an
-isolated directory on the Raspberry Pi but is not installed in production.
+The application, Gunicorn, and subapp write to stdout or stderr for collection
+by systemd-journald in production as of 2026-09-01. Startup and endpoint checks
+were recorded without exceptions or service restarts.
 
 Production currently uses `Storage=volatile`: the journal occupies about 30.9
 MB in `/run` and is lost at reboot. The reviewed drop-in changes journald to

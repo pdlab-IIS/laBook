@@ -2,9 +2,10 @@
 
 ## Status
 
-The systemd service, timer, retention logic, and automated tests are implemented
-and verified in an isolated directory on the Raspberry Pi. They are not yet
-installed into production.
+The systemd service, timer, and retention logic were installed in production on
+2026-09-01. The first manual run completed successfully and created
+`backups/daily/library.db_20260901-234805-004353.db` with mode 0600. The timer is
+active and waiting for its first scheduled run.
 
 ## Policy
 
