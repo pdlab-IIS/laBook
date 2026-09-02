@@ -20,6 +20,11 @@
     --color-body: #4b4b4b;
     --color-bg-l1: #cecece;
     --color-bg-l2: #fafafa;
+    --narrow-page-gutter: clamp(20px, 4vw, 28px);
+}
+
+html {
+    background-color: var(--color-bg);
 }
 
 body {
@@ -27,6 +32,7 @@ body {
     margin: 20px;
     background-color: var(--color-bg);
     color: var(--color-body);
+    container: app-page / inline-size;
 }
 
 /* Content Box                            */
@@ -79,6 +85,14 @@ a.book_title:active {
     color: var(--color-key-cont);
 }
 
+.book-compact-meta {
+    display: none;
+}
+
+.book-compact-author {
+    display: none;
+}
+
 /* book description                       */
 a.book_description {
     color: var(--color-body);
@@ -101,13 +115,134 @@ a.book_description:active {
 /* -------------------------------------- */
 /* Headder                                */
 /* -------------------------------------- */
+h1,
 h2 {
     color: var(--color-body);
     text-decoration: none;
 }
 
+h1:hover,
 h2:hover {
     text-decoration: none;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.app-brand {
+    flex: 0 1 auto;
+}
+
+.app-brand h1 {
+    white-space: nowrap;
+}
+
+.app-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 0;
+}
+
+.app-header-action {
+    width: auto;
+    white-space: nowrap;
+}
+
+.utility-menu {
+    position: relative;
+}
+
+.utility-menu__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background-color: var(--color-body);
+    color: #fff;
+    cursor: pointer;
+    list-style: none;
+}
+
+.utility-menu__toggle:hover,
+.utility-menu__toggle[aria-expanded="true"] {
+    background-color: var(--color-key-d1);
+}
+
+.utility-menu__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 100;
+    display: grid;
+    gap: 6px;
+    width: 280px;
+    padding: 8px;
+    border: 1px solid #8c8c8c;
+    border-radius: 12px;
+    background-color: var(--color-bg-l2);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.utility-menu__panel[hidden] {
+    display: none;
+}
+
+.utility-menu__item {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: left;
+}
+
+.utility-menu__access {
+    background-color: var(--color-bg-l1);
+    color: var(--color-body);
+}
+
+.utility-menu__status {
+    justify-self: end;
+    font-size: 0.8em;
+    white-space: nowrap;
+}
+
+.utility-menu__status a {
+    margin: 0;
+    padding: 0;
+}
+
+.utility-menu__item.is-active .utility-menu__status {
+    color: var(--color-key-cont);
+    font-weight: bold;
+}
+
+.search-controls {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    width: min(100%, 640px);
+}
+
+.search-controls #searchInput {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.search-controls #searchBtn {
+    flex: 0 0 auto;
 }
 
 /* -------------------------------------- */
@@ -260,6 +395,13 @@ td {
 
 }
 
+@media (max-width: 700px) {
+    body {
+        margin: 0;
+        padding: var(--narrow-page-gutter);
+    }
+}
+
 #camera {
     width: 750px;
     height: 1000px;
@@ -348,6 +490,18 @@ td {
     color: #f7f7f7;
     font: 600 12px/1.2 Arial, sans-serif;
     backdrop-filter: blur(8px);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.development-environment-overlay.is-dragging {
+    cursor: grabbing;
+}
+
+.development-environment-overlay__controls button {
+    cursor: pointer;
+    touch-action: manipulation;
 }
 
 .development-environment-overlay__heading,
@@ -398,44 +552,222 @@ td {
     text-align: right;
 }
 
+html[data-development-preview-mode="sp700"] .development-environment-overlay {
+    top: auto;
+    bottom: 12px;
+}
+
+/* The development mode only supplies a preview frame; narrow layouts below
+   are driven by the rendered page width, not this development attribute. */
 html[data-development-preview-mode="sp700"] body {
     width: 700px;
     min-width: 700px;
     min-height: min(844px, calc(100vh - 32px));
     margin: 16px auto;
-    padding: 10px;
+    padding: var(--narrow-page-gutter);
     outline: 4px solid #333943;
     border-radius: 14px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
-    font-size: 2.5rem;
     overflow-x: auto;
 }
 
-html[data-development-preview-mode="sp700"] .content-box {
+/* Product responsive rules: keep narrow-screen behavior independent from
+   development preview modes. */
+@container app-page (max-width: 700px) {
+.content-box {
     padding: 10px;
     margin: 10px;
 }
 
-html[data-development-preview-mode="sp700"] input[type="text"],
-html[data-development-preview-mode="sp700"] input[type="number"],
-html[data-development-preview-mode="sp700"] input[type="file"],
-html[data-development-preview-mode="sp700"] input[type="date"],
-html[data-development-preview-mode="sp700"] select {
+input[type="text"],
+input[type="number"],
+input[type="file"],
+input[type="date"],
+select {
     font-size: 2rem;
 }
 
-html[data-development-preview-mode="sp700"] body > button,
-html[data-development-preview-mode="sp700"] body > form button,
-html[data-development-preview-mode="sp700"] body > h2 button {
+.app-header,
+.search-controls,
+#booksTable,
+#pagination {
     width: 100%;
-    font-size: 2.5rem;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
 }
 
-html[data-development-preview-mode="sp700"] table {
+.app-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.app-brand {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.app-brand h1 {
+    overflow: hidden;
+    font-size: clamp(1.8rem, 6cqi, 2.5rem);
+    text-overflow: ellipsis;
+}
+
+.app-header-actions {
+    gap: clamp(4px, 1.5cqi, 8px);
+    margin-left: auto;
+}
+
+.app-header .app-header-action,
+.utility-menu__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(42px, 11cqi, 52px);
+    height: clamp(42px, 11cqi, 52px);
+    margin: 0;
+    padding: 0;
+    font-size: clamp(1.2rem, 4cqi, 1.6rem);
+}
+
+.app-header-action__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+}
+
+.utility-menu__panel {
+    width: min(280px, calc(100cqi - 2px));
+}
+
+.utility-menu__panel .utility-menu__item {
     width: 100%;
-    margin-top: 15px;
-    overflow-x: auto;
-    font-size: 2rem;
+    font-size: 1rem;
+}
+
+.search-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(52px, 14cqi, 76px);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.search-controls #searchInput {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none;
+    margin: 0;
+    font-size: clamp(1rem, 4cqi, 1.6rem);
+}
+
+.search-controls #searchBtn {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    font-size: clamp(1.4rem, 5cqi, 2rem);
+}
+
+#booksTable {
+    width: 100%;
+    margin: 12px 0;
+    table-layout: fixed;
+    font-size: 1rem;
+}
+
+#booksTable th,
+#booksTable td {
+    min-width: 0;
+    padding: 7px 5px;
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+}
+
+#booksTable th {
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+
+#booksTable th:nth-child(4),
+#booksTable td:nth-child(4),
+#booksTable th:nth-child(5),
+#booksTable td:nth-child(5) {
+    display: none;
+}
+
+#booksTable th:nth-child(1),
+#booksTable td:nth-child(1) {
+    width: clamp(56px, 9cqi, 62px);
+    text-align: center;
+}
+
+#booksTable th:nth-child(3),
+#booksTable td:nth-child(3) {
+    width: clamp(72px, 17cqi, 116px);
+}
+
+#booksTable th:nth-child(6),
+#booksTable td:nth-child(6) {
+    width: clamp(58px, 13cqi, 88px);
+}
+
+#booksTable th:nth-child(7),
+#booksTable td:nth-child(7) {
+    width: clamp(62px, 14cqi, 90px);
+}
+
+#booksTable td:nth-child(2) {
+    line-height: 1.3;
+}
+
+#booksTable td:nth-child(3),
+#booksTable td:nth-child(6),
+#booksTable td:nth-child(7) {
+    font-size: 0.88rem;
+}
+
+#booksTable .book-title {
+    display: block;
+    margin: 0;
+    padding: 0;
+    font-size: 1rem;
+}
+
+#booksTable .book-compact-meta {
+    display: block;
+    margin-top: 4px;
+    color: #686868;
+    font-size: 0.72rem;
+    font-weight: normal;
+    line-height: 1.25;
+}
+
+#booksTable img {
+    max-width: 46px !important;
+    max-height: 68px !important;
+}
+}
+
+@container app-page (max-width: 480px) {
+    #booksTable th:nth-child(3),
+    #booksTable td:nth-child(3) {
+        display: none;
+    }
+
+    #booksTable .book-compact-author {
+        display: block;
+        margin-top: 4px;
+        color: #555;
+        font-size: 0.78rem;
+        font-weight: normal;
+        line-height: 1.25;
+    }
 }
 
 html[data-development-preview-mode="pc"] body {
@@ -457,5 +789,12 @@ html[data-development-preview-mode="pc"] body {
     html[data-development-preview-mode="pc"] table {
         width: auto;
         font-size: 1rem;
+    }
+}
+
+@media (max-width: 700px) {
+    .development-environment-overlay {
+        top: auto;
+        bottom: 12px;
     }
 }

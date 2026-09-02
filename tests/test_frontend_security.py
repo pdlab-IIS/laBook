@@ -14,10 +14,16 @@ class FrontendSecurityTests(unittest.TestCase):
 
         self.assertNotIn("tr.innerHTML", index_source)
         self.assertNotIn("spnLockMode.innerHTML", index_source)
+        self.assertNotIn("spnSpd.innerHTML", index_source)
+        self.assertIn("spnSpd.replaceChildren", index_source)
         self.assertNotIn("tr.innerHTML", form_source)
         self.assertNotIn("Error: ${e}", form_source)
         self.assertIn("reviewCell.textContent = review", form_source)
         self.assertIn("title.textContent = book.title", index_source)
+        self.assertIn("compactMeta.textContent", index_source)
+        self.assertNotIn("compactMeta.innerHTML", index_source)
+        self.assertIn("compactAuthor.textContent", index_source)
+        self.assertNotIn("compactAuthor.innerHTML", index_source)
 
     def test_borrowed_filter_is_requested_from_the_full_dataset(self):
         index_source = (ROOT / "static" / "index.js").read_text(encoding="utf-8")

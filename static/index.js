@@ -21,18 +21,65 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const searchInput = document.getElementById('searchInput');
     const spnLockMode = document.getElementById('spnLockMode');
+    const lockModeStatus = document.getElementById('lockModeStatus');
     const spnSpd = document.getElementById('spnSpd');
+    const utilityMenu = document.getElementById('utilityMenu');
+    const utilityMenuToggle = utilityMenu.querySelector('.utility-menu__toggle');
+    const utilityMenuPanel = document.getElementById('utilityMenuPanel');
+
+    function setLockModeStatus(label, active = false) {
+        lockModeStatus.textContent = label;
+        spnLockMode.classList.toggle('is-active', active);
+    }
+
+    function closeUtilityMenu() {
+        utilityMenuPanel.hidden = true;
+        utilityMenuToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function renderAccessMode() {
+        const icon = document.createElement('i');
+        const label = document.createElement('span');
+
+        if (window.location.href.includes('labook')) {
+            icon.className = 'fa-solid fa-gauge-high';
+            label.title = 'You are in LOCAL mode now';
+            label.append(icon, document.createTextNode(' ローカル'));
+            spnSpd.replaceChildren(label);
+            return;
+        }
+
+        const link = document.createElement('a');
+        icon.className = 'fa-solid fa-globe';
+        link.href = 'http://labook.local';
+        link.title = 'Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)';
+        link.append(icon, document.createTextNode(' ローカルへ'));
+        spnSpd.replaceChildren(link);
+    }
 
     const initialShelfFilter = (window.initialShelfFilter || '').trim();
     if (initialShelfFilter) {
         searchInput.value = initialShelfFilter;
     }
 
-    if (window.location.href.includes("labook")) {
-        spnSpd.innerHTML = `<spn title="You are in LOCAL mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
-    } else {
-        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-globe"></i></spn></a>`
-    }
+    renderAccessMode();
+
+    utilityMenuToggle.addEventListener('click', function () {
+        const willOpen = utilityMenuPanel.hidden;
+        utilityMenuPanel.hidden = !willOpen;
+        utilityMenuToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    utilityMenu.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeUtilityMenu();
+            utilityMenuToggle.focus();
+        }
+    });
+    document.addEventListener('click', function (e) {
+        if (!utilityMenuPanel.hidden && !utilityMenu.contains(e.target)) {
+            closeUtilityMenu();
+        }
+    });
 
     const headers = Array.from(document.querySelectorAll('#booksTable thead th[data-key]'))
         .map(th => ({
@@ -166,15 +213,12 @@ document.addEventListener('DOMContentLoaded', async function () {
             } else if (searchValue.startsWith(magicPrefix)) {
                 let locationCode = searchValue.split('/').pop();
                 lockModeLocation = locationCode;
-                const lockLabel = document.createElement('span');
-                const lockIcon = document.createElement('i');
-                lockLabel.style.color = 'red';
-                lockIcon.className = 'fa-solid fa-location-pin-lock';
-                lockLabel.append(lockIcon, document.createTextNode(` ${locationCode}`));
-                spnLockMode.replaceChildren(lockLabel);
+                setLockModeStatus(locationCode, true);
                 searchInput.value = '';
             } else {
-                spnLockMode.textContent = '\u2003';
+                if (!lockModeLocation) {
+                    setLockModeStatus('オフ');
+                }
                 updateBooksTable();
             }
         }
@@ -191,8 +235,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         currentSortOrder = 'desc';
         filterStatus = false;
         lockModeLocation = null;
+        setLockModeStatus('オフ');
         renderIndicators();
         updateBooksTable();
+        closeUtilityMenu();
     });
     document.getElementById('addBookBtn').addEventListener('click', function () {
         window.location.href = '/books/manage';
@@ -200,7 +246,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('spnLockMode').addEventListener('click', function () {
         searchInput.value = magicPrefix;
         lockModeLocation = null;
+        setLockModeStatus('棚コード待ち');
         searchInput.focus();
+        closeUtilityMenu();
     });
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
@@ -302,7 +350,15 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         const title = document.createElement('a');
         title.className = 'book-title';
         title.textContent = book.title || '';
-        titleCell.appendChild(title);
+        const compactMeta = document.createElement('span');
+        compactMeta.className = 'book-compact-meta';
+        compactMeta.textContent = [book.publisher, book.publication_date]
+            .filter(Boolean)
+            .join(' · ');
+        const compactAuthor = document.createElement('span');
+        compactAuthor.className = 'book-compact-author';
+        compactAuthor.textContent = book.author || '';
+        titleCell.append(title, compactAuthor, compactMeta);
 
         const authorCell = document.createElement('td');
         authorCell.className = 'searchable-author';

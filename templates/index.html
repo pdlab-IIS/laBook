@@ -3,6 +3,7 @@
 
 <head>
     <title>laBook[alpha-version]</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script>window.initialShelfFilter = {{ (initial_filter or "")|tojson }};</script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='index.js') }}"></script>
@@ -26,16 +27,48 @@
 
 <body>
     {% include "_development_overlay.html" %}
-    <a href="./">
-        <h2><i class="fa-solid fa-database"></i>laBook</h2>
-    </a>
-    <input type="text" id="searchInput" style="min-width:400px" placeholder="ISBN / Title / Author / Publisher">
-    <button type="button" id="searchBtn"><i class="fas fa-search" aria-hidden="true"></i></button>
-    <button type="button" id="resetBtn" class="grey" style="margin-left: 0px;"><i class="fas fa-undo" aria-hidden="true"></i></button>
-    <span id="spnLockMode" title="[secret command] Continuous registration mode for inventory">&emsp;</span>
-    <button type="button" id="btnScanner"><i class="fa-solid fa-barcode"></i> scanner</button>
-    <button type="button" id="addBookBtn" class="grey"><i class="fas fa-book-medical" aria-hidden="true"></i> add book</button>
-    <span id="spnSpd"></span>
+    <header class="app-header">
+        <a class="app-brand" href="./">
+            <h1><i class="fa-solid fa-database" aria-hidden="true"></i>laBook</h1>
+        </a>
+        <div class="app-header-actions">
+            <button type="button" id="btnScanner" class="app-header-action" aria-label="スキャナー">
+                <i class="fa-solid fa-barcode" aria-hidden="true"></i>
+                <span class="app-header-action__label">scanner</span>
+            </button>
+            <button type="button" id="addBookBtn" class="app-header-action grey" aria-label="本を追加">
+                <i class="fas fa-book-medical" aria-hidden="true"></i>
+                <span class="app-header-action__label">add book</span>
+            </button>
+            <div id="utilityMenu" class="utility-menu">
+                <button type="button" id="utilityMenuToggle" class="utility-menu__toggle"
+                        aria-label="メニュー" aria-expanded="false" aria-controls="utilityMenuPanel">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
+                <div id="utilityMenuPanel" class="utility-menu__panel" hidden>
+                    <button type="button" id="resetBtn" class="utility-menu__item grey">
+                        <i class="fas fa-undo" aria-hidden="true"></i>
+                        <span>リロード</span>
+                    </button>
+                    <button type="button" id="spnLockMode" class="utility-menu__item grey"
+                            title="棚卸し用の連続登録モード">
+                        <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                        <span>棚卸しモード</span>
+                        <span id="lockModeStatus" class="utility-menu__status" aria-live="polite">オフ</span>
+                    </button>
+                    <div class="utility-menu__item utility-menu__access">
+                        <i class="fa-solid fa-network-wired" aria-hidden="true"></i>
+                        <span>アクセスモード</span>
+                        <span id="spnSpd" class="utility-menu__status" aria-live="polite"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="search-controls">
+        <input type="text" id="searchInput" placeholder="ISBN / Title / Author / Publisher">
+        <button type="button" id="searchBtn" aria-label="検索"><i class="fas fa-search" aria-hidden="true"></i></button>
+    </div>
     <table id="booksTable" class="book-list-table">
         <thead>
             <tr>
