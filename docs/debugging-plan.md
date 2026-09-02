@@ -66,6 +66,10 @@ DB修復の承認事項と実行手順は[`docs/database-repair.md`](database-re
 日次backupの保持方針と本番導入手順は[`docs/backup-operations.md`](backup-operations.md)に分離した。
 ログの記録項目と移行確認手順は[`docs/logging-operations.md`](logging-operations.md)に分離した。
 
+## 1.2 変更
+
+tailscale経由の実機のipが`100.92.231.89`に変更になった
+
 ## 2. システム全体像
 
 ```text
