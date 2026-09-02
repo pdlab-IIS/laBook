@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
@@ -79,18 +80,30 @@ def get_ndl_book_info(isbn):
 
 
 def get_rakuten_book_info(isbn):
-    url = "https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404"
+    url = "https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404"
     params = {
         "format": "json",
-        "isbnjan": isbn,
+        "formatVersion": 2,
+        "hits": 1,
+        "isbn": isbn,
         "applicationId": get_setting("RAKUTEN_APP_ID"),
     }
-    response = requests.get(url, params=params, timeout=EXTERNAL_API_TIMEOUT)
+    headers = {"accessKey": get_setting("RAKUTEN_ACCESS_KEY")}
+    response = requests.get(
+        url,
+        params=params,
+        headers=headers,
+        timeout=EXTERNAL_API_TIMEOUT,
+    )
     response.raise_for_status()
     data = response.json()
 
-    if "Items" in data and len(data["Items"]) > 0:
-        book = data["Items"][0]["Item"]
+    items = data.get("Items") or []
+    if items:
+        book = items[0]
+        # formatVersion=2 returns the item directly. Keep accepting the legacy
+        # wrapper so a transitional or cached response cannot break lookup.
+        book = book.get("Item", book)
         author = book.get("author")
         if author:
             author = author.replace("', '", ", ").replace("['", "").replace("']", "")
@@ -217,6 +230,16 @@ def normalize_publication_date(pub_date):
         return None
 
     normalized = str(pub_date).strip()
+    japanese_date = re.fullmatch(
+        r"(?P<year>\d{4})年(?:(?P<month>\d{1,2})月)?(?:(?P<day>\d{1,2})日)?",
+        normalized,
+    )
+    if japanese_date:
+        year = int(japanese_date.group("year"))
+        month = int(japanese_date.group("month") or 1)
+        day = int(japanese_date.group("day") or 1)
+        normalized = f"{year:04d}-{month:02d}-{day:02d}"
+
     if len(normalized) == 4 and normalized.isdigit():
         normalized += "-01-01"
     elif len(normalized) == 7 and normalized[4] == "-":

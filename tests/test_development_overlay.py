@@ -55,6 +55,13 @@ class DevelopmentOverlayTests(unittest.TestCase):
         self.assertIn('<span>棚卸し / Continuous:</span>', html)
         self.assertIn('aria-live="polite">OFF</span>', html)
         self.assertIn('<span>Access mode:</span>', html)
+        self.assertIn('id="inventoryLocationModal"', html)
+        self.assertIn('id="inventoryLocationInput"', html)
+        self.assertIn('id="inventoryLocationBadge"', html)
+        self.assertIn('id="inventoryLocationText"', html)
+        self.assertIn('id="inventoryIsbnMessage"', html)
+        self.assertIn('aria-describedby="inventoryIsbnMessage"', html)
+        self.assertIn('aria-live="polite"', html)
 
     def test_overlay_script_supports_pointer_dragging(self):
         with open("static/development_preview.js", encoding="utf-8") as source_file:

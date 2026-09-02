@@ -2,8 +2,10 @@
 
 import sqlite3
 from logger_config import setup_logger
+from outbound_policy import install_requests_allowlist
 
 logger = setup_logger()
+install_requests_allowlist()
 
 from flask import (
     Flask,

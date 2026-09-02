@@ -26,16 +26,67 @@ document.addEventListener('DOMContentLoaded', async function () {
     const utilityMenu = document.getElementById('utilityMenu');
     const utilityMenuToggle = utilityMenu.querySelector('.utility-menu__toggle');
     const utilityMenuPanel = document.getElementById('utilityMenuPanel');
+    const searchInputShell = document.getElementById('searchInputShell');
+    const inventoryLocationBadge = document.getElementById('inventoryLocationBadge');
+    const inventoryLocationText = document.getElementById('inventoryLocationText');
+    const inventoryLocationModal = document.getElementById('inventoryLocationModal');
+    const inventoryLocationForm = document.getElementById('inventoryLocationForm');
+    const inventoryLocationInput = document.getElementById('inventoryLocationInput');
+    const inventoryIsbnMessage = document.getElementById('inventoryIsbnMessage');
+
+    function setInventoryIsbnMessage(message = '', result = '') {
+        inventoryIsbnMessage.textContent = message;
+        inventoryIsbnMessage.hidden = !message;
+        inventoryIsbnMessage.classList.toggle('is-invalid', result === 'invalid');
+        inventoryIsbnMessage.classList.toggle('is-success', result === 'success');
+        inventoryIsbnMessage.classList.toggle('is-unknown', result === 'unknown');
+        searchInput.setAttribute('aria-invalid', result === 'invalid' ? 'true' : 'false');
+    }
+
+    function validateInventoryIsbnInput() {
+        const normalizedIsbn = searchInput.value.trim().replace(/[-\s]/g, '').toUpperCase();
+        if (!isbnValidate(normalizedIsbn)) {
+            setInventoryIsbnMessage(
+                'invalid / 無効: ISBN-10またはISBN-13を入力してください。',
+                'invalid'
+            );
+            searchInput.select();
+            return null;
+        }
+
+        setInventoryIsbnMessage();
+        return normalizedIsbn;
+    }
 
     function setLockModeStatus(active = false, detail = '') {
         lockModeStatus.textContent = active ? 'ON' : 'OFF';
         lockModeStatus.title = detail;
         spnLockMode.classList.toggle('is-active', active);
+        searchInputShell.classList.toggle('is-inventory-mode', active);
+        inventoryLocationText.textContent = active ? detail : '';
+        inventoryLocationBadge.hidden = !active;
+        if (!active) {
+            setInventoryIsbnMessage();
+        }
     }
 
     function closeUtilityMenu() {
         utilityMenuPanel.hidden = true;
         utilityMenuToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function openInventoryLocationModal() {
+        inventoryLocationInput.value = lockModeLocation || '';
+        inventoryLocationInput.setCustomValidity('');
+        closeUtilityMenu();
+        inventoryLocationModal.hidden = false;
+        inventoryLocationInput.focus();
+        inventoryLocationInput.select();
+    }
+
+    function closeInventoryLocationModal() {
+        inventoryLocationModal.hidden = true;
+        searchInput.focus();
     }
 
     function renderAccessMode() {
@@ -128,10 +179,20 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
+    searchInput.addEventListener('input', function () {
+        setInventoryIsbnMessage();
+    });
     searchInput.addEventListener('keydown', async function (e) {
-        searchValue = searchInput.value;
+        searchValue = searchInput.value.trim();
         if (e.key === 'Enter') {
-            if (lockModeLocation && isbnValidate(searchValue)) {
+            if (lockModeLocation) {
+                const normalizedIsbn = validateInventoryIsbnInput();
+                if (!normalizedIsbn) {
+                    e.preventDefault();
+                    return;
+                }
+
+                searchValue = normalizedIsbn;
                 if (await isBookExist(searchValue)) {
                     try {
                         const respUpdateBook = await fetch(`/books/move/${searchValue}`, {
@@ -152,6 +213,10 @@ document.addEventListener('DOMContentLoaded', async function () {
                         }
                         console.log('Book updated successfully:', updatedBook);
                         searchInput.value = '';
+                        setInventoryIsbnMessage(
+                            `success / 成功: ${searchValue} を Location ${lockModeLocation} に登録しました。`,
+                            'success'
+                        );
                         musicRegister.play();
                         updateBooksTable();
                     } catch (err) {
@@ -171,7 +236,11 @@ document.addEventListener('DOMContentLoaded', async function () {
                         const bookData = await respFetchBook.json();
                         if (!bookData) return;
                         if (!bookData.title) {
-                            console.error('Book data is incomplete:', book);
+                            console.error('Book data is incomplete:', bookData);
+                            setInventoryIsbnMessage(
+                                'unknown / 書誌情報なし: ISBNは有効ですが、書誌検索にヒットしませんでした。',
+                                'unknown'
+                            );
                             musicAlert.play();
                             searchInput.select();
                             return;
@@ -202,6 +271,10 @@ document.addEventListener('DOMContentLoaded', async function () {
                         if (respAddBook.ok) {
                             console.log('Book updated successfully:', book);
                             searchInput.value = '';
+                            setInventoryIsbnMessage(
+                                `success / 成功: ${searchValue} を Location ${lockModeLocation} に追加しました。`,
+                                'success'
+                            );
                             musicNewEntry.play();
                             updateBooksTable();
                         } else {
@@ -212,9 +285,13 @@ document.addEventListener('DOMContentLoaded', async function () {
                     }
                 }
             } else if (searchValue.startsWith(magicPrefix)) {
-                let locationCode = searchValue.split('/').pop();
+                const locationCode = searchValue.split('/').pop().trim();
+                if (!locationCode) {
+                    openInventoryLocationModal();
+                    return;
+                }
                 lockModeLocation = locationCode;
-                setLockModeStatus(true, locationCode);
+                setLockModeStatus(true, lockModeLocation);
                 searchInput.value = '';
             } else {
                 if (!lockModeLocation) {
@@ -226,6 +303,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     document.getElementById('searchBtn').addEventListener('click', function () {
+        if (lockModeLocation) {
+            const normalizedIsbn = validateInventoryIsbnInput();
+            if (!normalizedIsbn) {
+                return;
+            }
+            searchInput.value = normalizedIsbn;
+        }
         currentPage = 1;
         updateBooksTable();
     });
@@ -245,11 +329,38 @@ document.addEventListener('DOMContentLoaded', async function () {
         window.location.href = '/books/manage';
     });
     document.getElementById('spnLockMode').addEventListener('click', function () {
-        searchInput.value = magicPrefix;
-        lockModeLocation = null;
-        setLockModeStatus(false, '棚コード待ち');
-        searchInput.focus();
-        closeUtilityMenu();
+        openInventoryLocationModal();
+    });
+    inventoryLocationForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const location = inventoryLocationInput.value.trim();
+        if (!location) {
+            inventoryLocationInput.setCustomValidity('Locationを入力してください');
+            inventoryLocationInput.reportValidity();
+            return;
+        }
+
+        lockModeLocation = location;
+        setLockModeStatus(true, lockModeLocation);
+        setInventoryIsbnMessage();
+        searchInput.value = '';
+        closeInventoryLocationModal();
+    });
+    inventoryLocationInput.addEventListener('input', function () {
+        inventoryLocationInput.setCustomValidity('');
+    });
+    document.getElementById('inventoryLocationCancel').addEventListener('click', function () {
+        closeInventoryLocationModal();
+    });
+    inventoryLocationModal.addEventListener('click', function (e) {
+        if (e.target === inventoryLocationModal) {
+            closeInventoryLocationModal();
+        }
+    });
+    inventoryLocationModal.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeInventoryLocationModal();
+        }
     });
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';

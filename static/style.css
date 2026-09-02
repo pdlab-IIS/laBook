@@ -236,9 +236,127 @@ h2:hover {
     width: min(100%, 640px);
 }
 
-.search-controls #searchInput {
+.search-input-shell {
+    position: relative;
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.search-controls #searchInput {
+    width: 100%;
+    min-width: 0;
+}
+
+.search-input-shell.is-inventory-mode #searchInput {
+    padding-right: calc(45% + 20px);
+}
+
+.inventory-location-badge {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 45%;
+    transform: translateY(-50%);
+    overflow: hidden;
+    color: #b00020;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.inventory-location-badge[hidden] {
+    display: none;
+}
+
+.inventory-location-badge span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inventory-isbn-message {
+    width: min(100%, 640px);
+    margin: 6px 0 12px;
+    padding: 8px 10px;
+    border-left: 4px solid currentColor;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.52);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.inventory-isbn-message.is-invalid {
+    color: #b00020;
+}
+
+.inventory-isbn-message.is-success {
+    color: #126a37;
+}
+
+.inventory-isbn-message.is-unknown {
+    color: #8a4b08;
+}
+
+.inventory-isbn-message[hidden] {
+    display: none;
+}
+
+.inventory-location-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    background: rgba(20, 23, 27, 0.62);
+    color: var(--color-body);
+    backdrop-filter: blur(2px);
+}
+
+.inventory-location-modal[hidden] {
+    display: none;
+}
+
+.inventory-location-modal__form {
+    display: grid;
+    gap: 14px;
+    width: min(420px, calc(100vw - 40px));
+    padding: 24px;
+    border-radius: 14px;
+    background: var(--color-bg-l2);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.38);
+}
+
+.inventory-location-modal__form h2 {
+    font-size: 1.3rem;
+}
+
+.inventory-location-modal__form label {
+    margin: 0;
+}
+
+.inventory-location-modal__form #inventoryLocationInput {
+    width: 100%;
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.inventory-location-modal__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.inventory-location-modal__actions button {
+    width: 100%;
+    margin: 0;
+    font-size: 1rem;
 }
 
 .search-controls #searchBtn {
@@ -589,6 +707,7 @@ select {
 
 .app-header,
 .search-controls,
+.inventory-isbn-message,
 #booksTable,
 #pagination {
     width: 100%;
@@ -668,6 +787,10 @@ select {
     grid-template-columns: minmax(0, 1fr) clamp(52px, 14cqi, 76px);
     gap: 8px;
     margin-bottom: 12px;
+}
+
+.search-input-shell {
+    width: 100%;
 }
 
 .search-controls #searchInput {

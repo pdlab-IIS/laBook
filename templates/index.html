@@ -66,8 +66,33 @@
         </div>
     </header>
     <div class="search-controls">
-        <input type="text" id="searchInput" placeholder="ISBN / Title / Author / Publisher">
+        <div id="searchInputShell" class="search-input-shell">
+            <input type="text" id="searchInput" placeholder="ISBN / Title / Author / Publisher"
+                   aria-describedby="inventoryIsbnMessage" aria-invalid="false">
+            <span id="inventoryLocationBadge" class="inventory-location-badge" hidden>
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <span id="inventoryLocationText"></span>
+            </span>
+        </div>
         <button type="button" id="searchBtn" aria-label="検索"><i class="fas fa-search" aria-hidden="true"></i></button>
+    </div>
+    <p id="inventoryIsbnMessage" class="inventory-isbn-message" role="status"
+       aria-live="polite" hidden></p>
+    <div id="inventoryLocationModal" class="inventory-location-modal" role="dialog" aria-modal="true"
+         aria-labelledby="inventoryLocationTitle" hidden>
+        <form id="inventoryLocationForm" class="inventory-location-modal__form">
+            <h2 id="inventoryLocationTitle">
+                <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                棚卸し / Continuous
+            </h2>
+            <label for="inventoryLocationInput">Location</label>
+            <input type="text" id="inventoryLocationInput" autocomplete="off" required
+                   placeholder="Location">
+            <div class="inventory-location-modal__actions">
+                <button type="button" id="inventoryLocationCancel" class="grey">Cancel</button>
+                <button type="submit" id="inventoryLocationStart">Start</button>
+            </div>
+        </form>
     </div>
     <table id="booksTable" class="book-list-table">
         <thead>

@@ -424,7 +424,8 @@ Step 3から5では修復直前backup `/home/pdlab/labook/backups/predeploy/libr
 
 | 設定名 | 利用箇所 | 備考 |
 |---|---|---|
-| `RAKUTEN_APP_ID` | `fetch_book_info.py` | 書誌検索 |
+| `RAKUTEN_APP_ID` | `fetch_book_info.py` | 楽天Books書誌検索のApp ID |
+| `RAKUTEN_ACCESS_KEY` | `fetch_book_info.py` | 楽天Books書誌検索のAccess Key。HTTPヘッダーで送信 |
 | `GOOGLE_API_KEY` | `fetch_book_info.py` | 書誌検索 |
 | `NOTION_TOKEN` | `routes/notion.py`, `slack_notify.py` | Notion read/write |
 | `NOTION_DATABASE_ID` | 同上 | tokenほど強い秘密ではないが設定として一緒に管理 |
@@ -486,6 +487,7 @@ SOPSに保存する値の例:
 
 ```dotenv
 RAKUTEN_APP_ID=...
+RAKUTEN_ACCESS_KEY=...
 GOOGLE_API_KEY=...
 NOTION_TOKEN=...
 NOTION_DATABASE_ID=...
@@ -496,6 +498,7 @@ SLACK_WEBHOOK_URL=...
 
 ```dotenv
 RAKUTEN_APP_ID=
+RAKUTEN_ACCESS_KEY=
 GOOGLE_API_KEY=
 NOTION_TOKEN=
 NOTION_DATABASE_ID=
