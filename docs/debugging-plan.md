@@ -68,7 +68,7 @@ DB修復の承認事項と実行手順は[`docs/database-repair.md`](database-re
 
 ## 1.2 変更
 
-tailscale経由の実機のipが`100.92.231.89`に変更になった
+tailscale経由の実機のipが`100.110.113.62`に変更になった
 
 ## 2. システム全体像
 
