@@ -49,9 +49,12 @@ class DevelopmentOverlayTests(unittest.TestCase):
         self.assertIn('class="search-controls"', html)
         self.assertIn('id="utilityMenu"', html)
         self.assertIn('aria-label="メニュー"', html)
-        self.assertIn('<span>リロード</span>', html)
-        self.assertIn('<span>棚卸しモード</span>', html)
-        self.assertIn('<span>アクセスモード</span>', html)
+        self.assertIn('class="app-header-action__label">SCAN</span>', html)
+        self.assertIn('class="app-header-action__label">ADD</span>', html)
+        self.assertIn('<span>Reset</span>', html)
+        self.assertIn('<span>棚卸し / Continuous:</span>', html)
+        self.assertIn('aria-live="polite">OFF</span>', html)
+        self.assertIn('<span>Access mode:</span>', html)
 
     def test_overlay_script_supports_pointer_dragging(self):
         with open("static/development_preview.js", encoding="utf-8") as source_file:

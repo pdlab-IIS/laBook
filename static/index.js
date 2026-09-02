@@ -27,8 +27,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const utilityMenuToggle = utilityMenu.querySelector('.utility-menu__toggle');
     const utilityMenuPanel = document.getElementById('utilityMenuPanel');
 
-    function setLockModeStatus(label, active = false) {
-        lockModeStatus.textContent = label;
+    function setLockModeStatus(active = false, detail = '') {
+        lockModeStatus.textContent = active ? 'ON' : 'OFF';
+        lockModeStatus.title = detail;
         spnLockMode.classList.toggle('is-active', active);
     }
 
@@ -44,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (window.location.href.includes('labook')) {
             icon.className = 'fa-solid fa-gauge-high';
             label.title = 'You are in LOCAL mode now';
-            label.append(icon, document.createTextNode(' ローカル'));
+            label.append(icon, document.createTextNode(' LOCAL'));
             spnSpd.replaceChildren(label);
             return;
         }
@@ -53,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         icon.className = 'fa-solid fa-globe';
         link.href = 'http://labook.local';
         link.title = 'Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)';
-        link.append(icon, document.createTextNode(' ローカルへ'));
+        link.append(icon, document.createTextNode(' REMOTE'));
         spnSpd.replaceChildren(link);
     }
 
@@ -213,11 +214,11 @@ document.addEventListener('DOMContentLoaded', async function () {
             } else if (searchValue.startsWith(magicPrefix)) {
                 let locationCode = searchValue.split('/').pop();
                 lockModeLocation = locationCode;
-                setLockModeStatus(locationCode, true);
+                setLockModeStatus(true, locationCode);
                 searchInput.value = '';
             } else {
                 if (!lockModeLocation) {
-                    setLockModeStatus('オフ');
+                    setLockModeStatus();
                 }
                 updateBooksTable();
             }
@@ -235,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         currentSortOrder = 'desc';
         filterStatus = false;
         lockModeLocation = null;
-        setLockModeStatus('オフ');
+        setLockModeStatus();
         renderIndicators();
         updateBooksTable();
         closeUtilityMenu();
@@ -246,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('spnLockMode').addEventListener('click', function () {
         searchInput.value = magicPrefix;
         lockModeLocation = null;
-        setLockModeStatus('棚コード待ち');
+        setLockModeStatus(false, '棚コード待ち');
         searchInput.focus();
         closeUtilityMenu();
     });
