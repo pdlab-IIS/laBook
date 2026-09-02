@@ -80,6 +80,31 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(get.call_args.kwargs["timeout"], EXTERNAL_API_TIMEOUT)
         self.assertEqual(get.call_args.kwargs["params"]["key"], "dummy-key")
 
+    @mock.patch("fetch_book_info.get_setting", return_value="dummy-key")
+    @mock.patch("fetch_book_info.requests.get")
+    def test_google_legacy_thumbnail_url_is_upgraded_to_https(self, get, _get_setting):
+        response = mock.Mock()
+        response.json.return_value = {
+            "items": [
+                {
+                    "volumeInfo": {
+                        "title": "Google cover test",
+                        "imageLinks": {
+                            "thumbnail": "http://books.google.com/books?id=test&img=1"
+                        },
+                    }
+                }
+            ]
+        }
+        get.return_value = response
+
+        result = fetch_book_info.get_google_book_info("9780000000001")
+
+        self.assertEqual(
+            result["cover_url"],
+            "https://books.google.com/books?id=test&img=1",
+        )
+
     @mock.patch("fetch_book_info.save_cover_image", return_value=None)
     @mock.patch("fetch_book_info.get_ndl_book_info", return_value=None)
     @mock.patch(

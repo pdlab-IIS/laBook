@@ -67,6 +67,50 @@ class BookRouteTests(unittest.TestCase):
         ).fetchone()[0]
         self.assertIsNone(owner_id)
 
+    def test_inventory_add_returns_created_shelf_for_immediate_rendering(self):
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            response = self.client.post(
+                "/books",
+                json={
+                    "isbn": "9780000000002",
+                    "title": "Inventory book",
+                    "shelf_code": "NEW-LOCATION",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.get_json()
+        self.assertEqual(data["shelf_code"], "NEW-LOCATION")
+        self.assertIsInstance(data["shelf_id"], int)
+        shelf_id = self.db.execute(
+            "SELECT shelf_id FROM Books WHERE isbn = ?",
+            ("9780000000002",),
+        ).fetchone()[0]
+        self.assertEqual(data["shelf_id"], shelf_id)
+
+    def test_inventory_move_returns_created_shelf_for_immediate_rendering(self):
+        self.db.execute(
+            "INSERT INTO Books (isbn, title) VALUES (?, ?)",
+            ("9780000000003", "Moved book"),
+        )
+        self.db.commit()
+
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            response = self.client.put(
+                "/books/move/9780000000003",
+                json={"shelf_code": "MOVE-LOCATION"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data["shelf_code"], "MOVE-LOCATION")
+        self.assertIsInstance(data["shelf_id"], int)
+        shelf_id = self.db.execute(
+            "SELECT shelf_id FROM Books WHERE isbn = ?",
+            ("9780000000003",),
+        ).fetchone()[0]
+        self.assertEqual(data["shelf_id"], shelf_id)
+
     def test_borrowed_filter_applies_before_pagination(self):
         self.db.execute("INSERT INTO Users (name) VALUES ('Borrower')")
         self.db.executemany(

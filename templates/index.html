@@ -78,6 +78,11 @@
     </div>
     <p id="inventoryIsbnMessage" class="inventory-isbn-message" role="status"
        aria-live="polite" hidden></p>
+    <p id="inventoryProcessing" class="processing-indicator inventory-processing" role="status"
+       aria-live="polite" hidden>
+        <span class="processing-spinner" aria-hidden="true"></span>
+        <span id="inventoryProcessingText">棚卸し処理中...</span>
+    </p>
     <div id="inventoryLocationModal" class="inventory-location-modal" role="dialog" aria-modal="true"
          aria-labelledby="inventoryLocationTitle" hidden>
         <form id="inventoryLocationForm" class="inventory-location-modal__form">
@@ -94,7 +99,12 @@
             </div>
         </form>
     </div>
-    <table id="booksTable" class="book-list-table">
+    <div id="bookListLoading" class="processing-indicator book-list-loading" role="status"
+         aria-live="polite" hidden>
+        <span class="processing-spinner" aria-hidden="true"></span>
+        <span>Book listを読み込み中...</span>
+    </div>
+    <table id="booksTable" class="book-list-table" aria-describedby="bookListLoading">
         <thead>
             <tr>
                 <th>Cover</th>

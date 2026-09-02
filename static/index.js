@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const inventoryLocationForm = document.getElementById('inventoryLocationForm');
     const inventoryLocationInput = document.getElementById('inventoryLocationInput');
     const inventoryIsbnMessage = document.getElementById('inventoryIsbnMessage');
+    const inventoryProcessing = document.getElementById('inventoryProcessing');
+    const inventoryProcessingText = document.getElementById('inventoryProcessingText');
+    const searchBtn = document.getElementById('searchBtn');
 
     function setInventoryIsbnMessage(message = '', result = '') {
         inventoryIsbnMessage.textContent = message;
@@ -56,6 +59,111 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         setInventoryIsbnMessage();
         return normalizedIsbn;
+    }
+
+    function setInventoryProcessing(active, isbn = '') {
+        inventoryProcessing.hidden = !active;
+        inventoryProcessingText.textContent = active
+            ? `棚卸し処理中: ${isbn}`
+            : '棚卸し処理中...';
+        searchInput.disabled = active;
+        searchBtn.disabled = active;
+        searchInputShell.setAttribute('aria-busy', String(active));
+    }
+
+    function rememberShelf(result, fallbackLocation) {
+        const shelfId = Number(result && result.shelf_id);
+        const shelfCode = (result && result.shelf_code) || fallbackLocation;
+        if (Number.isInteger(shelfId) && shelfId > 0 && shelfCode) {
+            shelfCache[shelfId] = shelfCode;
+        }
+    }
+
+    async function processInventoryIsbn(isbn) {
+        const inventoryLocation = lockModeLocation;
+        setInventoryIsbnMessage();
+        setInventoryProcessing(true, isbn);
+
+        try {
+            if (await isBookExist(isbn)) {
+                const response = await fetch(`/books/move/${isbn}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ shelf_code: inventoryLocation })
+                });
+                if (!response.ok) {
+                    throw new Error(`Book move failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                rememberShelf(result, inventoryLocation);
+                searchInput.value = '';
+                setInventoryIsbnMessage(
+                    `success / 成功: ${isbn} を Location ${inventoryLocation} に登録しました。`,
+                    'success'
+                );
+                musicRegister.play();
+                await updateBooksTable();
+                return;
+            }
+
+            const metadataResponse = await fetch(`/books/api/fetch_book_info/${isbn}`);
+            if (!metadataResponse.ok) {
+                throw new Error(`Book metadata lookup failed with status ${metadataResponse.status}`);
+            }
+
+            const bookData = await metadataResponse.json();
+            if (!bookData || !bookData.title) {
+                setInventoryIsbnMessage(
+                    'unknown / 書誌情報なし: ISBNは有効ですが、書誌検索にヒットしませんでした。',
+                    'unknown'
+                );
+                musicAlert.play();
+                return;
+            }
+
+            const addResponse = await fetch('/books', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    isbn: bookData.isbn,
+                    title: bookData.title,
+                    author: bookData.author,
+                    publisher: bookData.publisher,
+                    publication_date: bookData.publication_date,
+                    cover_image_path: bookData.cover_image_path,
+                    shelf_code: inventoryLocation
+                })
+            });
+            if (!addResponse.ok) {
+                throw new Error(`Book add failed with status ${addResponse.status}`);
+            }
+
+            const result = await addResponse.json();
+            rememberShelf(result, inventoryLocation);
+            searchInput.value = '';
+            setInventoryIsbnMessage(
+                `success / 成功: ${isbn} を Location ${inventoryLocation} に追加しました。`,
+                'success'
+            );
+            musicNewEntry.play();
+            await updateBooksTable();
+        } catch (error) {
+            console.error('Inventory processing failed:', error);
+            setInventoryIsbnMessage(
+                'error / エラー: 棚卸し処理に失敗しました。もう一度お試しください。',
+                'invalid'
+            );
+            musicAlert.play();
+        } finally {
+            setInventoryProcessing(false);
+            searchInput.focus();
+            if (searchInput.value) searchInput.select();
+        }
     }
 
     function setLockModeStatus(active = false, detail = '') {
@@ -186,104 +294,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         searchValue = searchInput.value.trim();
         if (e.key === 'Enter') {
             if (lockModeLocation) {
+                e.preventDefault();
                 const normalizedIsbn = validateInventoryIsbnInput();
                 if (!normalizedIsbn) {
-                    e.preventDefault();
                     return;
                 }
-
-                searchValue = normalizedIsbn;
-                if (await isBookExist(searchValue)) {
-                    try {
-                        const respUpdateBook = await fetch(`/books/move/${searchValue}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ shelf_code: lockModeLocation })
-                        });
-                        if (!respUpdateBook.ok) {
-                            console.error('Error updating book:', respUpdateBook.statusText);
-                            return;
-                        }
-                        const updatedBook = await respUpdateBook.json();
-                        if (!updatedBook) {
-                            console.error('No book data returned after update');
-                            return;
-                        }
-                        console.log('Book updated successfully:', updatedBook);
-                        searchInput.value = '';
-                        setInventoryIsbnMessage(
-                            `success / 成功: ${searchValue} を Location ${lockModeLocation} に登録しました。`,
-                            'success'
-                        );
-                        musicRegister.play();
-                        updateBooksTable();
-                    } catch (err) {
-                        console.error('Error updating book:', err);
-                        return;
-                    }
-                } else {
-                    let book = {};
-                    try {
-                        const respFetchBook = await fetch(`/books/api/fetch_book_info/${searchValue}`);
-                        if (!respFetchBook.ok) {
-                            console.error('Error fetching book:', respFetchBook.statusText);
-                            musicAlert.play();
-                            searchInput.select();
-                            return;
-                        }
-                        const bookData = await respFetchBook.json();
-                        if (!bookData) return;
-                        if (!bookData.title) {
-                            console.error('Book data is incomplete:', bookData);
-                            setInventoryIsbnMessage(
-                                'unknown / 書誌情報なし: ISBNは有効ですが、書誌検索にヒットしませんでした。',
-                                'unknown'
-                            );
-                            musicAlert.play();
-                            searchInput.select();
-                            return;
-                        }
-                        book = {
-                            isbn: bookData.isbn,
-                            title: bookData.title,
-                            author: bookData.author,
-                            publisher: bookData.publisher,
-                            publication_date: bookData.publication_date,
-                            cover_image_path: bookData.cover_image_path,
-                        };
-                    } catch (err) {
-                        console.error('Error processing book data:', err);
-                        return;
-                    }
-                    try {
-                        const respAddBook = await fetch(`/books`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                ...book,
-                                shelf_code: lockModeLocation
-                            })
-                        });
-                        if (respAddBook.ok) {
-                            console.log('Book updated successfully:', book);
-                            searchInput.value = '';
-                            setInventoryIsbnMessage(
-                                `success / 成功: ${searchValue} を Location ${lockModeLocation} に追加しました。`,
-                                'success'
-                            );
-                            musicNewEntry.play();
-                            updateBooksTable();
-                        } else {
-                            console.error('Error adding book:', respAddBook.statusText);
-                        }
-                    } catch (err) {
-                        console.error('Error adding book:', err);
-                    }
-                }
+                await processInventoryIsbn(normalizedIsbn);
             } else if (searchValue.startsWith(magicPrefix)) {
                 const locationCode = searchValue.split('/').pop().trim();
                 if (!locationCode) {
@@ -302,13 +318,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
-    document.getElementById('searchBtn').addEventListener('click', function () {
+    searchBtn.addEventListener('click', async function () {
         if (lockModeLocation) {
             const normalizedIsbn = validateInventoryIsbnInput();
             if (!normalizedIsbn) {
                 return;
             }
-            searchInput.value = normalizedIsbn;
+            await processInventoryIsbn(normalizedIsbn);
+            return;
         }
         currentPage = 1;
         updateBooksTable();
@@ -399,6 +416,8 @@ async function loadAllShelves() {
 }
 
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
+    const booksTable = document.getElementById('booksTable');
+    const loadingIndicator = document.getElementById('bookListLoading');
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
     if (lastkey != keyword) {
@@ -412,6 +431,9 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     if (controller) controller.abort();
     controller = new AbortController();
     const requestId = ++currentRequestId;
+    const loadingStartedAt = performance.now();
+    loadingIndicator.hidden = false;
+    booksTable.setAttribute('aria-busy', 'true');
 
     const offset = (currentPage - 1) * pageSize;
     let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
@@ -420,13 +442,32 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     try {
         const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
         if (requestId !== currentRequestId) return;
+        if (!resp.ok) throw new Error(`Book list failed with status ${resp.status}`);
         const data = await resp.json();
         books = data.books || [];
         totalBooksCount = data.total_count || books.length;
         lastBooksCount = books.length;
-    } catch {
-        tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
+    } catch (error) {
+        if (error.name === 'AbortError' || requestId !== currentRequestId) return;
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'Failed to load books';
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
         return;
+    } finally {
+        if (requestId === currentRequestId) {
+            const minimumVisibleMs = 300;
+            const remainingMs = minimumVisibleMs - (performance.now() - loadingStartedAt);
+            if (remainingMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingMs));
+            }
+        }
+        if (requestId === currentRequestId) {
+            loadingIndicator.hidden = true;
+            booksTable.removeAttribute('aria-busy');
+        }
     }
 
     const pagedBooks = books;
@@ -554,7 +595,12 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         tableBody.appendChild(tr);
     });
     if (pagedBooks.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'No books found';
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
     }
 }
 

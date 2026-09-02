@@ -9,6 +9,7 @@ User=pdlab
 Group=pdlab
 WorkingDirectory=/home/pdlab/labook
 EnvironmentFile=-/etc/labook/metadata.env
+Environment=LABOOK_OUTBOUND_ALLOWLIST=ndlsearch.ndl.go.jp,openapi.rakuten.co.jp,www.googleapis.com,thumbnail.image.rakuten.co.jp,books.google.com
 ExecStart=/home/pdlab/labook/start_gunicorn.sh
 Restart=always
 RestartSec=5s

@@ -305,6 +305,43 @@ h2:hover {
     display: none;
 }
 
+.processing-indicator {
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+}
+
+.processing-indicator:not([hidden]) {
+    display: flex;
+}
+
+.processing-spinner {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border: 3px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.inventory-processing {
+    width: min(100%, 640px);
+    margin: 6px 0 12px;
+    color: #b00020;
+}
+
+.book-list-loading {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    color: var(--color-key-n0);
+}
+
+.processing-indicator[hidden] {
+    display: none;
+}
+
 .inventory-location-modal {
     position: fixed;
     inset: 0;

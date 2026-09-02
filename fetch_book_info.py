@@ -6,6 +6,7 @@ import sys
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -14,6 +15,17 @@ from http_config import COVER_IMAGE_TIMEOUT, EXTERNAL_API_TIMEOUT
 
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_google_cover_url(url):
+    """Upgrade legacy Google Books thumbnail links to the allowed HTTPS URL."""
+    if not url:
+        return None
+
+    parsed = urlsplit(url)
+    if parsed.scheme.lower() == "http" and parsed.hostname == "books.google.com":
+        return urlunsplit(("https", parsed.netloc, parsed.path, parsed.query, parsed.fragment))
+    return url
 
 
 def save_cover_image(isbn, url):
@@ -141,7 +153,9 @@ def get_google_book_info(isbn):
         "author": author,
         "publisher": book_data.get("publisher"),
         "date": book_data.get("publishedDate"),
-        "cover_url": book_data.get("imageLinks", {}).get("thumbnail"),
+        "cover_url": normalize_google_cover_url(
+            book_data.get("imageLinks", {}).get("thumbnail")
+        ),
     }
 
 

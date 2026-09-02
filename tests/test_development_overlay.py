@@ -61,6 +61,11 @@ class DevelopmentOverlayTests(unittest.TestCase):
         self.assertIn('id="inventoryLocationText"', html)
         self.assertIn('id="inventoryIsbnMessage"', html)
         self.assertIn('aria-describedby="inventoryIsbnMessage"', html)
+        self.assertIn('id="inventoryProcessing"', html)
+        self.assertIn('id="inventoryProcessingText"', html)
+        self.assertIn('id="bookListLoading"', html)
+        self.assertIn('class="processing-spinner"', html)
+        self.assertIn('aria-describedby="bookListLoading"', html)
         self.assertIn('aria-live="polite"', html)
 
     def test_overlay_script_supports_pointer_dragging(self):

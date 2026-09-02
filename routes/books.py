@@ -201,7 +201,13 @@ def add_book():
         db.rollback()
         logger.warning("Book insert rejected by integrity constraint")
         abort(409, description="Book references invalid or duplicate data")
-    return jsonify({"message": "Book added"}), 201
+    return jsonify(
+        {
+            "message": "Book added",
+            "shelf_id": shelf_id,
+            "shelf_code": data.get("shelf_code"),
+        }
+    ), 201
 
 
 @bp.route("/<isbn>", methods=["PUT"])
@@ -236,7 +242,13 @@ def update_book(isbn):
     )
     db.commit()
     logger.info("Book updated: isbn=%s", isbn)
-    return jsonify({"message": "Book updated"})
+    return jsonify(
+        {
+            "message": "Book updated",
+            "shelf_id": shelf_id,
+            "shelf_code": data.get("shelf_code"),
+        }
+    )
 
 
 @bp.route("/move/<isbn>", methods=["PUT"])
@@ -262,7 +274,13 @@ def move_book(isbn):
     )
     db.commit()
     logger.info("Book moved: isbn=%s", isbn)
-    return jsonify({"message": "Book updated"})
+    return jsonify(
+        {
+            "message": "Book updated",
+            "shelf_id": shelf_id,
+            "shelf_code": data.get("shelf_code"),
+        }
+    )
 
 
 @bp.route("/<isbn>", methods=["DELETE"])
