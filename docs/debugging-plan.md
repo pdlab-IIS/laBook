@@ -552,6 +552,19 @@ sops decrypt --output .env secrets/dev.enc.env
 
 ### 8.7 本番RPiへの渡し方
 
+2026-09-03に楽天Books用の`RAKUTEN_APP_ID`と`RAKUTEN_ACCESS_KEY`を
+次の短期構成で本番RPiへ反映した。
+
+- ローカルの`keys.py`全体はコピーせず、対象の2設定だけをSSHの標準入力で転送
+- `/etc/labook/metadata.env`へroot:root、mode 0600で直接配置
+- `labook.service`の`EnvironmentFile=-/etc/labook/metadata.env`から読み込み
+- 値をコマンドライン、journal、作業用ファイルへ出さない
+- unit適用前に`systemd-analyze verify`、適用後にservice状態と`/healthz`を確認
+
+`config.py`は環境変数を`keys.py`より優先するため、既存の本番設定を残したまま
+楽天の2設定だけを上書きできる。恒久策としてのSOPSまたはsystemd credentialsへの
+移行方針は引き続き有効とする。
+
 短期案:
 
 1. 本番復号権限を持つデプロイ担当ホストで`prod.enc.env`を復号

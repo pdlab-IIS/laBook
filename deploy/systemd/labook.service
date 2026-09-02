@@ -8,6 +8,7 @@ Type=simple
 User=pdlab
 Group=pdlab
 WorkingDirectory=/home/pdlab/labook
+EnvironmentFile=-/etc/labook/metadata.env
 ExecStart=/home/pdlab/labook/start_gunicorn.sh
 Restart=always
 RestartSec=5s

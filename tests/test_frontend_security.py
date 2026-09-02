@@ -40,6 +40,17 @@ class FrontendSecurityTests(unittest.TestCase):
         self.assertIn("url += '&status=borrowed'", index_source)
         self.assertNotIn("limit=99999", index_source)
 
+    def test_responsive_breakpoint_avoids_legacy_oversized_controls(self):
+        style_source = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
+        tablet_rules = style_source.split("@media (max-width: 1000px)", 1)[1].split(
+            "@media (max-width: 700px)", 1
+        )[0]
+
+        self.assertIn("@container app-page (max-width: 760px)", style_source)
+        self.assertNotIn("font-size: 2.5rem", tablet_rules)
+        self.assertIn("width: auto;", tablet_rules)
+        self.assertIn("font-size: 1rem;", tablet_rules)
+
 
 if __name__ == "__main__":
     unittest.main()

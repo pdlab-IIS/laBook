@@ -482,7 +482,7 @@ td {
         margin: 10px;
         margin-right: 10px;
         padding: 10px;
-        font-size: 2.5rem;
+        font-size: 1rem;
     }
 
     .content-box {
@@ -495,19 +495,21 @@ td {
     input[type="file"],
     input[type="date"],
     select {
-        font-size: 2rem;
+        font-size: 1rem;
     }
 
     button {
-        font-size: 2.5rem;
-        width: 100%
+        width: auto;
+        font-size: 1rem;
     }
 
     table {
         width: 100%;
+        margin-right: 0;
+        margin-left: 0;
         overflow-x: auto;
         margin-top: 15px;
-        font-size: 2rem;
+        font-size: 1rem;
     }
 
 
@@ -691,7 +693,9 @@ html[data-development-preview-mode="sp700"] body {
 
 /* Product responsive rules: keep narrow-screen behavior independent from
    development preview modes. */
-@container app-page (max-width: 700px) {
+/* Keep the compact table through tablet portrait widths. The seven-column
+   desktop table has enough room once the rendered page exceeds 760px. */
+@container app-page (max-width: 760px) {
 .content-box {
     padding: 10px;
     margin: 10px;
