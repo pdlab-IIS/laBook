@@ -138,6 +138,40 @@ class BookRouteTests(unittest.TestCase):
         self.assertEqual(data["total_count"], 2)
         self.assertEqual([book["isbn"] for book in data["books"]], [1005, 1029])
 
+    def test_location_name_filter_applies_before_pagination_and_count(self):
+        self.db.execute("INSERT INTO Shelves VALUES (1, 'A1', '')")
+        self.db.executemany(
+            "INSERT INTO Books (isbn, title, shelf_id) VALUES (?, ?, ?)",
+            [(1000 + i, f"Book {i}", 1) for i in range(30)]
+            + [(2000, 'A1 appears in title only', None)],
+        )
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            response = self.client.get(
+                "/books?keyword=A1&sort=isbn&order=asc&limit=25&offset=25"
+            ).get_json()
+            count = self.client.get("/books?keyword=A1&count_only=1").get_json()
+        self.assertEqual(response["total_count"], 30)
+        self.assertEqual([book["isbn"] for book in response["books"]], list(range(1025, 1030)))
+        self.assertEqual(count["count"], 30)
+
+    def test_location_search_composes_with_status_and_keeps_text_search(self):
+        self.db.execute("INSERT INTO Shelves VALUES (1, 'A1', '')")
+        self.db.execute("INSERT INTO Users VALUES (1, 'Reader')")
+        self.db.executemany(
+            "INSERT INTO Books (isbn, title, shelf_id) VALUES (?, ?, ?)",
+            [(1000, 'First', 1), (1001, 'Second', 1), (2000, 'Ordinary text', None)],
+        )
+        self.db.execute(
+            "INSERT INTO Loans (isbn, borrower_id, loan_date) VALUES (1001, 1, '2026-09-07')"
+        )
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            borrowed = self.client.get("/books?keyword=A1&status=borrowed&sort=isbn").get_json()
+            text = self.client.get("/books?keyword=Ordinary&sort=isbn").get_json()
+            empty = self.client.get("/books?keyword=unknown-location&sort=isbn").get_json()
+        self.assertEqual([book["isbn"] for book in borrowed["books"]], [1001])
+        self.assertEqual([book["isbn"] for book in text["books"]], [2000])
+        self.assertEqual(empty["total_count"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

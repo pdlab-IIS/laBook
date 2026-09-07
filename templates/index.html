@@ -25,7 +25,7 @@
     <meta property="og:image:alt"    content="ogp of laBook">
 </head>
 
-<body>
+<body class="app-page book-list-page">
     {% include "_development_overlay.html" %}
     <header class="app-header">
         <a class="app-brand" href="./">
@@ -67,7 +67,7 @@
     </header>
     <div class="search-controls">
         <div id="searchInputShell" class="search-input-shell">
-            <input type="text" id="searchInput" placeholder="ISBN / Title / Author / Publisher"
+            <input type="text" id="searchInput" placeholder="ISBN / Title / Author / Publisher / Location"
                    aria-describedby="inventoryIsbnMessage" aria-invalid="false">
             <span id="inventoryLocationBadge" class="inventory-location-badge" hidden>
                 <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
@@ -104,6 +104,9 @@
         <span class="processing-spinner" aria-hidden="true"></span>
         <span>Book listを読み込み中...</span>
     </div>
+    {% with pagination_id="paginationTop", pagination_label="書籍一覧の上のページ切り替え" %}
+        {% include "_pagination.html" %}
+    {% endwith %}
     <table id="booksTable" class="book-list-table" aria-describedby="bookListLoading">
         <thead>
             <tr>
@@ -135,11 +138,9 @@
             <!-- Filled by index.js -->
         </tbody>
     </table>
-    <div id="pagination" style="margin: 20px 0; text-align: center;">
-    <button id="prevPageBtn"><i class="fa-solid fa-angles-left"></i> Prev</button>
-    <span id="pageInfo"></span>
-    <button id="nextPageBtn">Next <i class="fa-solid fa-angles-right"></i></button>
-    </div>
+    {% with pagination_id="pagination", pagination_label="書籍一覧の下のページ切り替え" %}
+        {% include "_pagination.html" %}
+    {% endwith %}
 </body>
 
 </html>

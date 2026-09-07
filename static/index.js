@@ -12,7 +12,6 @@ let currentRequestId = 0;
 
 let currentPage = 1;
 const pageSize = 25;
-let lastBooksCount = 0;
 let totalBooksCount = 0;
 let lastkey = "";
 
@@ -382,18 +381,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
     });
-    document.getElementById('prevPageBtn').addEventListener('click', function () {
+    document.querySelectorAll('[data-page-action="prev"]').forEach(button => button.addEventListener('click', function () {
         if (currentPage > 1) {
             currentPage--;
             updateBooksTable();
         }
-    });
-    document.getElementById('nextPageBtn').addEventListener('click', function () {
-        if (lastBooksCount === pageSize) {
+    }));
+    document.querySelectorAll('[data-page-action="next"]').forEach(button => button.addEventListener('click', function () {
+        if (currentPage * pageSize < totalBooksCount) {
             currentPage++;
             updateBooksTable();
         }
-    });
+    }));
 
     renderIndicators();
     updateBooksTable();  
@@ -426,7 +425,6 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     }
     const statusOnly = filterStatus;
     let books = [];
-    let totalBooksCount = 0;
 
     if (controller) controller.abort();
     controller = new AbortController();
@@ -444,9 +442,9 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         if (requestId !== currentRequestId) return;
         if (!resp.ok) throw new Error(`Book list failed with status ${resp.status}`);
         const data = await resp.json();
+        if (requestId !== currentRequestId) return;
         books = data.books || [];
-        totalBooksCount = data.total_count || books.length;
-        lastBooksCount = books.length;
+        totalBooksCount = data.total_count ?? books.length;
     } catch (error) {
         if (error.name === 'AbortError' || requestId !== currentRequestId) return;
         const row = document.createElement('tr');
@@ -470,14 +468,20 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         }
     }
 
+    if (requestId !== currentRequestId) return;
     const pagedBooks = books;
     const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
     const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const endEntry = (currentPage - 1) * pageSize + books.length;
-    document.getElementById('pageInfo').textContent =
-        `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
-    document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
-    document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
+    document.querySelectorAll('[data-page-info]').forEach(info => {
+        info.textContent = `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
+    });
+    document.querySelectorAll('[data-page-action="prev"]').forEach(button => {
+        button.disabled = currentPage <= 1;
+    });
+    document.querySelectorAll('[data-page-action="next"]').forEach(button => {
+        button.disabled = currentPage >= totalPages;
+    });
 
     tableBody.replaceChildren();
     pagedBooks.forEach((book, idx) => {
@@ -582,8 +586,8 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
             }
         });
         tr.querySelector('.searchable-shelf')?.addEventListener('click', function () {
-            if (book.shelf_id) {
-                document.getElementById('searchInput').value = "shelf_id:" + String(book.shelf_id);
+            if (book.shelf_id && shelfCache[book.shelf_id]) {
+                document.getElementById('searchInput').value = shelfCache[book.shelf_id];
                 updateBooksTable();
             }
         });

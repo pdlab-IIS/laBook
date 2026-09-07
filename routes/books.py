@@ -85,7 +85,13 @@ def list_books():
     filter_params = []
 
     if keyword:
-        if keyword.startswith("shelf_id:"):
+        shelf = db.execute(
+            "SELECT shelf_id FROM Shelves WHERE shelf_code = ?", (keyword,)
+        ).fetchone()
+        if shelf:
+            conditions.append("Books.shelf_id = ?")
+            filter_params.append(shelf[0])
+        elif keyword.startswith("shelf_id:"):
             conditions.append("Books.shelf_id = ?")
             filter_params.append(keyword.split(":", 1)[1])
         else:

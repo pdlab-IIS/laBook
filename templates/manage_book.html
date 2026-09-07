@@ -14,21 +14,21 @@
        https://fontawesome.com/license/free -->
 </head>
 
-<body>
+<body class="app-page manage-page">
     {% include "_development_overlay.html" %}
-    <h2><button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
+    <h2 class="manage-header"><button id='backPage' onclick='window.location.href="/"' aria-label="書籍一覧に戻る">
         <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
         </button>
         {% if mode == "edit" %}<i class="fas fa-book"></i> Edit / Borrow{% else %}<i class="fas fa-book-medical"></i>
         Add{% endif %}</h2>
     <!-- {% if error %} <div style="color:red;">Error: {{ error }}</div>{% endif %}-->
-    <div style="display: flex; align-items: flex-end; gap: 16px; margin-top:15px; margin-left:11px;">
+    <div class="cover-editor">
         {% if mode == "edit" %}
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
-            alt="No Image" style="max-height: min-content;">
-        <form id="coverUploadForm" enctype="multipart/form-data" style="display:inline; border: 2px dashed #bbb; padding: 8px; border-radius: 8px;">
-            <input type="file" id="coverFileInput" name="cover" accept=".jpg,.jpeg,image/jpeg" style="display:inline;">
+            alt="No Image">
+        <form id="coverUploadForm" enctype="multipart/form-data">
+            <input type="file" id="coverFileInput" name="cover" accept=".jpg,.jpeg,image/jpeg">
             <div id="coverDropZone" style="margin-top:4px; color:#888; font-size:0.9em;">
         Drag & Drop image here
     </div>
@@ -36,7 +36,7 @@
         {% else %}
         <img id="cover_preview"
             src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-medical-solid.svg') }}"
-            alt="No Image" style="max-height: min-content;">
+            alt="No Image">
         <button type="button" id="btnScanner" onclick="mobileScan()"><i class="fas fa-barcode" aria-hidden="true"></i>
             Scanner</button>
         {% endif %}
@@ -98,6 +98,7 @@
 
         </table>
     </form>
+    <div class="manage-actions">
     <button type="button" id="btnDeleteBook" onclick="deleteBook()" class="delete-button" {% if mode !='edit'
         %}style="display:none;" {% endif %}><i class="fas fa-trash" aria-hidden="true"></i> Delete Book</button>
     <button type="button" id="btnFetchBookInfo" onclick="fetchBookInfo()" {% if mode =='edit'
@@ -106,6 +107,7 @@
     <button type="button" id="btnSubmitForm" onclick="updateBook()"><i class="fas fa-save" aria-hidden="true"></i>
         {% if mode
         == 'edit' %}Update{% else %}Add{% endif %} Book</button>
+    </div>
 
     {% if mode == 'edit' %}<hr>{% endif %}
     <form id="formStatus">
@@ -150,14 +152,16 @@
             </tr>
         </table>
     </form>
+    <div class="manage-actions">
     <button type="button" id="btnBorrowBook" onclick="borrowBook()" {% if mode !='edit' %}style="display:none;" {% endif
         %}><i class="fas fa-book-reader" aria-hidden="true"></i> Borrow Book</button>
     <button type="button" id="btnReturnBook" onclick="returnBook()" {% if mode !='edit' %}style="display:none;" {% endif
         %}><i class="fa-solid fa-arrow-right-to-bracket"></i>
         Return Book</button>
+    </div>
 
     {% if mode == 'edit' %}<hr>{% endif %}
-    <div id="reviewTableContainer" style="margin-top:30px;">
+    <div id="reviewTableContainer">
         <h3 {% if mode !='edit' %}style="display:none;" {% endif %}><i class="fa-solid fa-comments"></i> Reviews from<a
                 href="https://www.notion.so/book-review-22c8cd0402be80fc8dc5e750b784f54d" target="_blank"><i
                     class="fa-brands fa-notion"></i> pdlab
@@ -183,16 +187,18 @@
                     <label for="itxReview"><i class="fa-solid fa-pen-to-square"></i> Review:</label>
                 </td>
                 <td>
-                    <textarea id="itxReview" name="review" rows="5" style="width:98%; resize:vertical;"
+                    <textarea id="itxReview" name="review" rows="5"
                         placeholder="Write your review here..."></textarea>
                 </td>
             </tr>
         </table>
     </form>
+    <div class="manage-actions">
     <button type="button" id="btnAddToNotion" onclick="addToNotion()" {% if mode !='edit' %}style="display:none;" {%
         endif %}>
         <i class="fa-brands fa-notion"></i> Add Review to Notion
     </button>
+    </div>
 </body>
 
 </html>

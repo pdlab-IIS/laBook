@@ -974,3 +974,238 @@ html[data-development-preview-mode="pc"] body {
         bottom: 12px;
     }
 }
+
+/* Shared list/manage page layout. Preview modes only provide a frame. */
+body.app-page {
+    margin: 0;
+    padding: clamp(20px, 3vw, 40px);
+    font-size: 1rem;
+}
+
+.app-page .app-header,
+.app-page .search-controls,
+.app-page .inventory-isbn-message,
+.app-page .inventory-processing,
+.app-page .pagination,
+.app-page #booksTable {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.app-page .app-brand,
+.app-page .book-title {
+    margin: 0;
+    padding: 0;
+}
+
+.app-page .app-header-actions {
+    margin-left: auto;
+}
+
+.app-page :is(.app-header, .search-controls, .pagination, .inventory-location-modal,
+              .manage-header, .cover-editor, .manage-actions) button,
+.app-page #searchBtn {
+    height: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    font: 400 1rem/1.2 Arial, sans-serif;
+    vertical-align: middle;
+}
+
+.app-page .app-header-action__label {
+    font-size: inherit;
+}
+
+.app-page .utility-menu__toggle {
+    width: 44px;
+}
+
+.app-page #searchInput {
+    margin: 0;
+    height: 44px;
+    font-size: 1rem;
+}
+
+.app-page .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin: 16px 0;
+    text-align: left;
+}
+
+.pagination [data-page-info] {
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.app-page button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.app-page #booksTable {
+    table-layout: fixed;
+}
+
+.app-page #booksTable :is(th, td) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@container app-page (min-width: 761px) {
+    #booksTable th:nth-child(1) { width: 8%; }
+    #booksTable th:nth-child(2) { width: 30%; }
+    #booksTable th:nth-child(3) { width: 18%; }
+    #booksTable th:nth-child(4) { width: 16%; }
+    #booksTable th:nth-child(5) { width: 11%; }
+    #booksTable th:nth-child(6) { width: 9%; }
+    #booksTable th:nth-child(7) { width: 8%; }
+}
+
+.manage-page .manage-header,
+.manage-page .cover-editor,
+.manage-page .manage-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 20px;
+}
+
+.manage-page .cover-editor {
+    align-items: flex-end;
+}
+
+.manage-page #cover_preview {
+    width: 120px;
+    height: 170px;
+    object-fit: contain;
+    object-position: left bottom;
+}
+
+.manage-page #coverUploadForm {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 12px;
+    border: 2px dashed #888;
+    border-radius: 8px;
+}
+
+.manage-page :is(form, #reviewTableContainer) {
+    width: 100%;
+    min-width: 0;
+}
+
+.manage-page .book-form-table {
+    width: 100%;
+    table-layout: fixed;
+    margin: 0 0 16px;
+    background: transparent;
+}
+
+.manage-page .book-form-table :is(td, th) {
+    min-width: 0;
+    padding: 8px 0;
+    border: 0;
+    overflow-wrap: anywhere;
+}
+
+.manage-page .book-form-table td:first-child {
+    width: 180px;
+}
+
+.manage-page .book-form-table label {
+    margin: 0;
+}
+
+.manage-page :is(input, textarea, select) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 10px;
+    font: 400 1rem/1.4 Arial, sans-serif;
+}
+
+.manage-page textarea {
+    resize: vertical;
+    border: 1px solid var(--color-bg-l1);
+    border-radius: 4px;
+}
+
+.manage-page hr {
+    margin: 24px 0;
+    border: 0;
+    border-top: 1px solid #888;
+}
+
+.manage-page #reviewTable {
+    background: var(--color-bg-l1);
+}
+
+.manage-page #reviewTable :is(td, th) {
+    padding: 10px;
+}
+
+.manage-page #reviewTable th:first-child {
+    width: 25%;
+}
+
+@container app-page (max-width: 760px) {
+    .app-page :is(.app-header, .search-controls, .pagination, .inventory-location-modal,
+                  .manage-header, .cover-editor, .manage-actions) button,
+    .app-page #searchBtn {
+        height: 48px;
+        min-height: 48px;
+        font-size: 0.875rem;
+        padding: 0 10px;
+    }
+
+    .app-page #searchInput {
+        height: 48px;
+    }
+
+    .app-page .app-header .app-header-action {
+        flex-direction: column;
+        gap: 2px;
+        min-width: 52px;
+        padding: 4px 6px;
+    }
+
+    .app-page .utility-menu__toggle {
+        width: 48px;
+    }
+
+    .app-page .app-brand h1 {
+        font-size: clamp(1.4rem, 6cqi, 2.5rem);
+    }
+
+    .manage-page .book-form-table:not(#reviewTable) :is(tbody, tr, td) {
+        display: block;
+        width: 100%;
+    }
+
+    .manage-page .book-form-table:not(#reviewTable) td {
+        padding: 4px 0;
+    }
+
+    .manage-page .book-form-table:not(#reviewTable) tr {
+        margin-bottom: 12px;
+    }
+
+    .manage-page .manage-actions button {
+        max-width: 100%;
+    }
+}
+
+@container app-page (max-width: 480px) {
+    .pagination [data-page-info] {
+        order: 1;
+        flex-basis: 100%;
+    }
+}

@@ -72,13 +72,18 @@ def scan_with_location(location_code=None):
             "SELECT shelf_id FROM Shelves WHERE shelf_code = ?", (location_code,)
         ).fetchone()
         if row:
-            return redirect(url_for("hello_world", shelf_id=row[0]))
+            return redirect(url_for("hello_world", location=location_code))
     return redirect(url_for("hello_world"))
 
 @app.route("/")
 def hello_world():
-    shelf_id = request.args.get('shelf_id', '')
-    initial_filter = f"shelf_id:{shelf_id}" if shelf_id else ""
+    initial_filter = request.args.get("location", "").strip()
+    shelf_id = request.args.get("shelf_id", "")
+    if not initial_filter and shelf_id:
+        row = get_db().execute(
+            "SELECT shelf_code FROM Shelves WHERE shelf_id = ?", (shelf_id,)
+        ).fetchone()
+        initial_filter = row[0] if row else ""
     return render_template("index.html", initial_filter=initial_filter)
 
 @app.route("/scan", methods=["GET", "POST", "OPTIONS"])
