@@ -526,7 +526,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
           : '/static/book-solid.svg';
 
         const coverCell = document.createElement('td');
-        coverCell.className = 'clickable-cover';
+        coverCell.className = 'clickable-cover book-cover-column';
         coverCell.style.cursor = 'pointer';
         const coverImage = document.createElement('img');
         coverImage.src = coverSrc;
@@ -536,7 +536,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         coverCell.appendChild(coverImage);
 
         const titleCell = document.createElement('td');
-        titleCell.className = 'clickable-title';
+        titleCell.className = 'clickable-title book-title-column';
         titleCell.style.cursor = 'pointer';
         const title = document.createElement('a');
         title.className = 'book-title';
@@ -552,21 +552,21 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         titleCell.append(title, compactAuthor, compactMeta);
 
         const authorCell = document.createElement('td');
-        authorCell.className = 'searchable-author';
+        authorCell.className = 'searchable-author book-author-column';
         authorCell.style.cursor = 'pointer';
         authorCell.textContent = book.author || '';
 
         const publisherCell = document.createElement('td');
-        publisherCell.className = 'searchable-publisher';
+        publisherCell.className = 'searchable-publisher book-publisher-column';
         publisherCell.style.cursor = 'pointer';
         publisherCell.textContent = book.publisher || '';
 
         const publicationCell = document.createElement('td');
-        publicationCell.className = 'searchable-publication-date';
+        publicationCell.className = 'searchable-publication-date book-date-column';
         publicationCell.textContent = book.publication_date || '';
 
         const shelfCell = document.createElement('td');
-        shelfCell.className = 'searchable-shelf';
+        shelfCell.className = 'searchable-shelf book-location-column';
         shelfCell.id = shelfCellId;
         shelfCell.style.cursor = 'pointer';
         if (book.shelf_id && shelfCache[book.shelf_id]) {
@@ -578,7 +578,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         }
 
         const statusCell = document.createElement('td');
-        statusCell.className = 'clickable-status';
+        statusCell.className = 'clickable-status book-status-column';
         if (book.status) {
             statusCell.classList.add('searchable-borrower');
             statusCell.textContent = book.status;

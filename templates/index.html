@@ -49,7 +49,7 @@
                 </button>
                 <div id="utilityMenuPanel" class="utility-menu__panel" hidden>
                     <button type="button" id="bulkEditBtn" class="utility-menu__item grey" aria-pressed="false">
-                        <i class="fas fa-edit" aria-hidden="true"></i><span>一括変更 (<span id="bulkSelectedCount">0</span>)</span>
+                        <i class="fas fa-edit" aria-hidden="true"></i><span>Bulk Edit</span>
                     </button>
                         <button type="button" id="manageUsersBtn" class="utility-menu__item grey"
                             data-url="{{ url_for('users.manage_users_page') }}">
@@ -127,25 +127,25 @@
         <thead>
             <tr>
                 <th class="book-selection" hidden><input type="checkbox" id="selectPageBooks" aria-label="表示中のページを全選択" disabled></th>
-                <th>Cover</th>
-                <th data-key="title">
+                <th class="book-cover-column">Cover</th>
+                <th class="book-title-column" data-key="title">
                     Title
                     <span class="indicator"></span>
                 </th>
-                <th data-key="author">
+                <th class="book-author-column" data-key="author">
                     Author
                     <span class="indicator"></span>
                 </th>
-                <th data-key="publisher">
+                <th class="book-publisher-column" data-key="publisher">
                     Publisher
                     <span class="indicator"></span>
                 </th>
-                <th data-key="publication_date">
+                <th class="book-date-column" data-key="publication_date">
                     Publish
                     <span class="indicator"></span>
                 </th>
-                <th>Location</th>
-                <th data-key="status">
+                <th class="book-location-column">Location</th>
+                <th class="book-status-column" data-key="status">
                     Status
                     <span class="indicator"></span>
                 </th>
