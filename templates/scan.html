@@ -3,6 +3,7 @@
 
 <head>
     <title>laBook[alpha-version] | Scan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='quagga.min.js') }}"></script>
     <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
@@ -14,6 +15,7 @@
 </head>
 
 <body>
+    {% include "_development_overlay.html" %}
      <body>
         <button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
         <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>

@@ -400,8 +400,12 @@ async function preLoanProcess() {
         const resp = await fetch(`/users/by_name/${encodeURIComponent(name)}`);
         if (resp.ok) {
             const user = await resp.json();
+            if (user.entity_type !== 'person') {
+                alert('貸出・返却には人物を指定してください。');
+                return false;
+            }
             return user.user_id;
-        } else {
+        } else if (resp.status === 404) {
             const createResp = await fetch('/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -414,6 +418,9 @@ async function preLoanProcess() {
                 alert('Failed to create user.');
                 return false;
             }
+        } else {
+            alert('Failed to check user existence.');
+            return false;
         }
     } catch (e) {
         alert('Failed to check user existence.');
@@ -532,19 +539,28 @@ async function addToNotion() {
 
 async function loadReviews(isbn) {
     const tableBody = document.querySelector('#reviewTable tbody');
-    tableBody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    const showMessage = (message) => {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 2;
+        cell.textContent = message;
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
+    };
+
+    showMessage('Loading...');
     try {
-        const resp = await fetch(`/api/notion/get_review_by_isbn/${isbn}`);
+        const resp = await fetch(`/api/notion/get_review_by_isbn/${encodeURIComponent(isbn)}`);
         if (!resp.ok) {
-            tableBody.innerHTML = '<tr><td colspan="3">Failed to load reviews</td></tr>';
+            showMessage('Failed to load reviews');
             return;
         }
         const data = await resp.json();
         if (!Array.isArray(data) || data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="3">No reviews found</td></tr>';
+            showMessage('No reviews found');
             return;
         }
-        tableBody.innerHTML = '';
+        tableBody.replaceChildren();
         data.forEach(entry => {
             const props = entry.properties || {};
             // Created Time
@@ -564,10 +580,15 @@ async function loadReviews(isbn) {
                 review = props.Review.rich_text.map(rt => rt.plain_text).join('');
 
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${reviewer} (${reviewCreated})</td><td>${review}</td>`;
+            const reviewerCell = document.createElement('td');
+            const reviewCell = document.createElement('td');
+            reviewerCell.textContent = `${reviewer} (${reviewCreated})`;
+            reviewCell.textContent = review;
+            tr.append(reviewerCell, reviewCell);
             tableBody.appendChild(tr);
         });
     } catch (e) {
-        tableBody.innerHTML = `<tr><td colspan="3">Error: ${e}</td></tr>`;
+        console.error('Failed to load reviews:', e);
+        showMessage('Failed to load reviews');
     }
 }

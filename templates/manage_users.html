@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>laBook | users & owners</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='owner_settings.js') }}" defer></script>
+    <script src="https://kit.fontawesome.com/93e347c8ec.js" crossorigin="anonymous"></script>
+</head>
+<body class="app-page manage-page people-page">
+    {% include "_development_overlay.html" %}
+    <header class="manage-header">
+        <button id='backPage' onclick='window.location.href="/"' aria-label="書籍一覧に戻る">
+            <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
+        </button>
+        <h1>users & owners</h1>
+    </header>
+    <p id="ownerSettingsMessage" role="status" aria-live="polite">{% if request.args.get('result') == 'saved' %}設定を保存しました。{% elif request.args.get('result') == 'deleted' %}削除しました。{% endif %}</p>
+    <section id="people" aria-labelledby="peopleTitle">
+        <h2 id="peopleTitle">users & owners <small>({{ entities|length }})</small></h2>
+        <p>所有する本、または貸出・返却履歴がある場合は削除できません。</p>
+        <ul class="entity-list">
+            {% for entity in entities %}
+            <li class="entity-card">
+                <div>
+                    <h3>{{ entity.name }} <small hidden>ID: {{ entity.user_id }}</small></h3>
+                    <p>{{ '人物' if entity.entity_type == 'person' else '研究室・組織' }} / Owner指定: {{ '可' if entity.can_own_books else '不可' }}</p>
+                    <p>所有 {{ entity.owned_count }}冊 / 貸出中 {{ entity.active_count }}冊 / 貸出・返却履歴 {{ entity.history_count }}件</p>
+                </div>
+                <div class="manage-actions">
+                    <button type="button" data-edit-entity="{{ entity.user_id }}" aria-label="{{ entity.name }}を編集">編集</button>
+                    <button type="button" class="delete-button" data-delete-entity="{{ entity.user_id }}" data-name="{{ entity.name }}" aria-label="{{ entity.name }}を削除"{% if entity.owned_count or entity.history_count %} disabled title="所有する本または貸出・返却履歴があります"{% endif %}>削除</button>
+                </div>
+            </li>
+            {% else %}<li>人物・組織はまだ登録されていません。</li>{% endfor %}
+        </ul>
+    </section>
+    <section id="entityEditor" class="owner-settings" aria-labelledby="editorTitle">
+        <h2 id="editorTitle">人物・組織の追加・変更</h2>
+        <p>Owner資格の解除は所有する本の変更・解除後に行えます。貸出・返却履歴のある人物は組織に変更できません。</p>
+        <form id="ownerSettingsForm">
+            <table class="book-form-table">
+                <tr><td><label for="ownerEntity">対象</label></td><td>
+                    <select id="ownerEntity">
+                        <option value="">新規作成</option>
+                        {% for entity in entities %}
+                        <option value="{{ entity.user_id }}" data-name="{{ entity.name }}" data-type="{{ entity.entity_type }}" data-eligible="{{ entity.can_own_books }}">{{ entity.name }} (ID: {{ entity.user_id }})</option>
+                        {% endfor %}
+                    </select>
+                </td></tr>
+                <tr><td><label for="ownerEntityName">名前</label></td><td><input id="ownerEntityName" type="text" required></td></tr>
+                <tr><td><label for="ownerEntityType">種別</label></td><td><select id="ownerEntityType"><option value="person">人物</option><option value="organization">研究室・組織</option></select></td></tr>
+                <tr><td><label for="ownerEntityEligible">オーナー指定</label></td><td><select id="ownerEntityEligible"><option value="0">不可</option><option value="1">可</option></select></td></tr>
+            </table>
+            <div class="manage-actions"><button type="submit" id="saveOwnerEntity">保存</button></div>
+        </form>
+    </section>
+    <section id="loans" aria-labelledby="loansTitle">
+        <h2 id="loansTitle">貸出状況</h2>
+        <nav class="people-navigation" aria-label="貸出の表示範囲" hidden>
+            <a hidden href="{{ url_for('users.manage_users_page', view='active') }}#loans"{% if view == 'active' %} aria-current="page"{% endif %}>貸出中</a>
+            <a hidden href="{{ url_for('users.manage_users_page', view='all') }}#loans"{% if view == 'all' %} aria-current="page"{% endif %}>全履歴（返却済みを含む）</a>
+        </nav>
+        <p>{{ total }}件 / {{ page }} / {{ page_count }}ページ</p>
+        <table class="loans-table">
+            <caption hidden>{{ '貸出中の本' if view == 'active' else '貸出・返却履歴' }}</caption>
+            <thead><tr><th scope="col">本</th><th scope="col">借り手</th><th scope="col">貸出日</th></tr></thead>
+            <tbody>
+                {% for loan in loans %}
+                <tr>
+                    <td data-label="本"><a href="{{ url_for('books.manage_book_page', isbn=loan.isbn) }}">{{ loan.title or '書誌情報なし' }}</a><small>ISBN: {{ loan.isbn }}</small></td>
+                    <td data-label="借り手">{{ loan.borrower_name or '未設定' }}</td>
+                    <td data-label="貸出日">{{ loan.loan_date }}</td>
+                </tr>
+                {% else %}<tr><td colspan="3">{{ '貸出中の本はありません。' if view == 'active' else '貸出履歴はありません。' }}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+        <nav class="people-navigation" aria-label="貸出一覧のページ切り替え">
+            {% if page > 1 %}<a href="{{ url_for('users.manage_users_page', view=view, page=page-1) }}#loans">前へ</a>{% endif %}
+            {% if page < page_count %}<a href="{{ url_for('users.manage_users_page', view=view, page=page+1) }}#loans">次へ</a>{% endif %}
+        </nav>
+    </section>
+</body>
+</html>

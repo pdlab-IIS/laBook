@@ -1,0 +1,17 @@
+[Unit]
+Description=Create and verify the daily laBook SQLite backup
+
+[Service]
+Type=oneshot
+User=pdlab
+Group=pdlab
+WorkingDirectory=/home/pdlab/labook
+UMask=0077
+ExecStart=/home/pdlab/labook/venv/bin/python -m scripts.run_backup --database /home/pdlab/labook/library.db --backup-dir /home/pdlab/labook/backups/daily --keep-count 90 --max-age-days 120
+Nice=10
+IOSchedulingClass=idle
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=labook-backup
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=1000

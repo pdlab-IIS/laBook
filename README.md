@@ -192,20 +192,44 @@ labook/
 
 ## 🏁 Quick Start
 
-1. Make venv and install dependencies  
-   `pip install flask requests gunicorn`
-1. Make some files and directories
+1. Use Python 3.11 and create a virtual environment.
+
+   ```sh
+   python -m venv venv
+   # PowerShell: .\venv\Scripts\Activate.ps1
+   # Bash: source venv/bin/activate
+   python -m pip install -r requirements-dev.txt
+   ```
+
+1. Configure the settings listed in [`.env.example`](.env.example) as process
+   environment variables. The application does not automatically load a local
+   `.env` file. `keys.py` remains available only as a deprecated migration
+   fallback; do not send it between development hosts.
+1. Make the runtime files and directories that are not stored in Git.
    - `covers/`, `logs/`
    - `static/alert.mp3`, `static/newentry.mp3`,  `static/register.mp3`
-   - [`static/quagga.min.js`](https://github.com/serratus/quaggaJS)
-   - `keys.py`
-     - ```  
-        RAKUTEN_APP_ID = "***"
-        GOOGLE_API_KEY = "***"
-        ```
-1. Start server  
-   `python app.py`
-1. Initialize DB  
-   Access `/initdb`
+1. Run tests.
+
+   ```sh
+   python -m pytest
+   ```
+
+1. Start the development server.
+
+   ```sh
+   python app.py
+   ```
+
+1. For a new disposable development database only, use the local maintenance
+   command below. It refuses to overwrite an existing file.
+
+   ```sh
+   python -m scripts.init_database --database /path/to/new-library.db
+   ```
 1. Add/Edit books at `/books/manage`
 1. Use the barcode scanner at `/scan/` for fast book registration.
+
+See [`docs/debugging-plan.md`](docs/debugging-plan.md) for the current system
+assessment, implementation phases, and the SOPS + age secret-sharing plan.
+The audited database migration workflow is documented in
+[`docs/database-repair.md`](docs/database-repair.md).

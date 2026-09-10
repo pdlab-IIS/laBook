@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the laBook SQLite backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=10m
+AccuracySec=1m
+Unit=labook-backup.service
+
+[Install]
+WantedBy=timers.target

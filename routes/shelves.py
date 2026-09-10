@@ -37,7 +37,6 @@ def add_shelf():
     cursor = db.execute("SELECT 1 FROM Shelves WHERE shelf_code = ?", (data['shelf_code'],))
     if cursor.fetchone():
         abort(409, description="Shelf code already exists")
-    print(data)
     db.execute(
         "INSERT INTO Shelves (shelf_code, location_description) VALUES (?, ?)",
         (data['shelf_code'],  data.get('location_description'))

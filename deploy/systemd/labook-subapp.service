@@ -1,0 +1,21 @@
+[Unit]
+Description=laBook Slack notification scheduler
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pdlab
+Group=pdlab
+WorkingDirectory=/home/pdlab/labook
+ExecStart=/home/pdlab/labook/venv/bin/python /home/pdlab/labook/subapp.py
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=labook-subapp
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=1000
+
+[Install]
+WantedBy=multi-user.target

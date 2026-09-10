@@ -7,10 +7,11 @@ from flask import (
     redirect,
     url_for,
     Response,
+    make_response,
 )
 from db import get_db
 import fetch_book_info
-import requests, logging, os
+import logging, os, sqlite3
 from datetime import datetime
 
 bp = Blueprint("books", __name__, url_prefix="/books")
@@ -38,27 +39,59 @@ def get_book_status(db, isbn):
             return "Error: No borrower found"
 
 
-def get_or_create_shelf_id(shelf_code, shelf_name=None, location_description=None):
-    from flask import current_app
+def get_or_create_shelf_id(db, shelf_code, location_description=None):
+    """Return a shelf id without making a nested HTTP request to this app."""
+    normalized_code = str(shelf_code).strip()
+    if not normalized_code:
+        return None
 
-    api_url = f"http://localhost:5000/shelves/by_code/{shelf_code}"
-    try:
-        resp = requests.get(api_url)
-        if resp.status_code == 200:
-            return resp.json()["shelf_id"]
-    except Exception:
-        pass
-    api_url = f"http://localhost:5000/shelves"
-    payload = {
-        "shelf_code": shelf_code,
-        "shelf_name": shelf_name or shelf_code,
-        "location_description": location_description or "",
-    }
-    resp = requests.post(api_url, json=payload)
-    if resp.status_code in (200, 201):
-        return resp.json()["shelf_id"]
-    else:
-        raise Exception("Failed to create shelf")
+    row = db.execute(
+        "SELECT shelf_id FROM Shelves WHERE shelf_code = ?",
+        (normalized_code,),
+    ).fetchone()
+    if row:
+        return row[0]
+
+    db.execute(
+        """INSERT OR IGNORE INTO Shelves (shelf_code, location_description)
+           VALUES (?, ?)""",
+        (normalized_code, location_description or ""),
+    )
+    row = db.execute(
+        "SELECT shelf_id FROM Shelves WHERE shelf_code = ?",
+        (normalized_code,),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("Failed to create shelf")
+    return row[0]
+
+
+def normalize_owner_id(owner_id):
+    """Convert the historical zero sentinel to a nullable foreign key."""
+    if owner_id in (None, "", 0, "0"):
+        return None
+    return owner_id
+
+
+def validate_owner_id(owner_id):
+    def reject_owner():
+        abort(make_response(jsonify(description="Owner must be an existing user"), 409))
+
+    if isinstance(owner_id, bool):
+        reject_owner()
+    owner_id = normalize_owner_id(owner_id)
+    if owner_id is None:
+        return None
+    if not str(owner_id).isascii() or not str(owner_id).isdigit():
+        reject_owner()
+    if len(str(owner_id)) > 19:
+        reject_owner()
+    owner_id = int(owner_id)
+    if not 0 < owner_id <= 2**63 - 1:
+        reject_owner()
+    if get_db().execute("SELECT 1 FROM Users WHERE user_id = ? AND can_own_books=1", (owner_id,)).fetchone() is None:
+        reject_owner()
+    return owner_id
 
 
 @bp.route("", methods=["GET"])
@@ -69,29 +102,46 @@ def list_books():
     offset = request.args.get("offset", type=int, default=0)
     limit = request.args.get("limit", type=int, default=100)
     keyword = request.args.get("keyword", "").strip()
+    status_filter = request.args.get("status", "").strip()
+    conditions = []
+    filter_params = []
+
+    if keyword:
+        shelf = db.execute(
+            "SELECT shelf_id FROM Shelves WHERE shelf_code = ?", (keyword,)
+        ).fetchone()
+        if shelf:
+            conditions.append("Books.shelf_id = ?")
+            filter_params.append(shelf[0])
+        elif keyword.startswith("shelf_id:"):
+            conditions.append("Books.shelf_id = ?")
+            filter_params.append(keyword.split(":", 1)[1])
+        else:
+            conditions.append(
+                "(Books.title LIKE ? OR Books.author LIKE ? "
+                "OR Books.publisher LIKE ? OR Books.isbn LIKE ?)"
+            )
+            kw = f"%{keyword}%"
+            filter_params.extend([kw, kw, kw, keyword])
+
+    if status_filter == "borrowed":
+        conditions.append(
+            "EXISTS ("
+            "SELECT 1 FROM Loans "
+            "WHERE Loans.isbn = Books.isbn AND Loans.return_date IS NULL"
+            ")"
+        )
+
+    where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
     count_only = request.args.get("count_only")
     if count_only:
-        sql = "SELECT COUNT(*) FROM Books"
-        params = []
-        if keyword:
-            sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ?"
-            kw = f"%{keyword}%"
-            params = [kw, kw, kw]
-        count = db.execute(sql, params).fetchone()[0]
+        sql = "SELECT COUNT(*) FROM Books" + where_clause
+        count = db.execute(sql, filter_params).fetchone()[0]
         return jsonify({"count": count})
 
     # --- 総件数取得 ---
-    count_sql = "SELECT COUNT(*) FROM Books"
-    count_params = []
-    if keyword:
-        if keyword.startswith("shelf_id:"):
-            count_sql += " WHERE shelf_id = ? "
-            count_params.append(keyword.split(":", 1)[1])
-        else:
-            count_sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ? OR isbn LIKE ? "
-            kw = f"%{keyword}%"
-            count_params.extend([kw, kw, kw, keyword])
-    total_count = db.execute(count_sql, count_params).fetchone()[0]
+    count_sql = "SELECT COUNT(*) FROM Books" + where_clause
+    total_count = db.execute(count_sql, filter_params).fetchone()[0]
 
     # --- 本リスト取得 ---
     valid_sort_keys = {
@@ -108,17 +158,9 @@ def list_books():
     if order not in {"asc", "desc"}:
         order = "asc"
 
-    sql = "SELECT * FROM Books"
-    params = []
-    if keyword:
-        if keyword.startswith("shelf_id:"):
-            sql += " WHERE shelf_id = ? "
-            params.append(keyword.split(":", 1)[1])
-        else:
-            sql += " WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ? OR isbn LIKE ? "
-            kw = f"%{keyword}%"
-            params.extend([kw, kw, kw, keyword])
-    sql += f" ORDER BY {sort_key} {order.upper()} LIMIT ? OFFSET ?"
+    sql = "SELECT Books.* FROM Books" + where_clause
+    params = list(filter_params)
+    sql += f" ORDER BY Books.{sort_key} {order.upper()} LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     cursor = db.execute(sql, params)
     books = []
@@ -153,15 +195,18 @@ def get_book_dict(isbn):
 
 @bp.route("", methods=["POST"])
 def add_book():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     required = ["isbn", "title"]
     if not all(k in data for k in required):
         abort(400, description="Missing required fields")
     db = get_db()
+    owner_id = validate_owner_id(data.get("owner_id"))
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
-            data["shelf_code"], data.get("shelf_name"), data.get("location_description")
+            db,
+            data["shelf_code"],
+            data.get("location_description"),
         )
     try:
         db.execute(
@@ -173,17 +218,24 @@ def add_book():
                 data.get("publisher"),
                 data.get("publication_date"),
                 data.get("cover_image_path"),
-                data.get("owner_id"),
+                owner_id,
                 data.get("comment"),
                 shelf_id,
             ),
         )
         db.commit()
-        logger.info(f"Book added: {data}")
-    except Exception:
-        abort(409, description=Exception)
-        logger.error(f"Failed to add book: {data}")
-    return jsonify({"message": "Book added"}), 201
+        logger.info("Book added: isbn=%s", data["isbn"])
+    except sqlite3.IntegrityError:
+        db.rollback()
+        logger.warning("Book insert rejected by integrity constraint")
+        abort(409, description="Book references invalid or duplicate data")
+    return jsonify(
+        {
+            "message": "Book added",
+            "shelf_id": shelf_id,
+            "shelf_code": data.get("shelf_code"),
+        }
+    ), 201
 
 
 @bp.route("/<isbn>", methods=["PUT"])
@@ -191,12 +243,17 @@ def update_book(isbn):
     data = request.get_json()
     db = get_db()
     cursor = db.execute("SELECT * FROM Books WHERE isbn = ?", (isbn,))
-    if cursor.fetchone() is None:
+    row = cursor.fetchone()
+    if row is None:
         abort(404, description="Book not found")
+    existing = dict(zip([column[0] for column in cursor.description], row))
+    owner_id = validate_owner_id(data.get("owner_id", existing["owner_id"]))
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
-            data["shelf_code"], data.get("shelf_name"), data.get("location_description")
+            db,
+            data["shelf_code"],
+            data.get("location_description"),
         )
     db.execute(
         """UPDATE Books SET title=?, author=?, publisher=?, publication_date=?, cover_image_path=?, owner_id=?, comment=?, shelf_id=?
@@ -207,15 +264,21 @@ def update_book(isbn):
             data.get("publisher"),
             data.get("publication_date"),
             data.get("cover_image_path"),
-            data.get("owner_id"),
+            owner_id,
             data.get("comment"),
             shelf_id,
             isbn,
         ),
     )
     db.commit()
-    logger.info(f"Book updated: {data}")
-    return jsonify({"message": "Book updated"})
+    logger.info("Book updated: isbn=%s", isbn)
+    return jsonify(
+        {
+            "message": "Book updated",
+            "shelf_id": shelf_id,
+            "shelf_code": data.get("shelf_code"),
+        }
+    )
 
 
 @bp.route("/move/<isbn>", methods=["PUT"])
@@ -228,7 +291,9 @@ def move_book(isbn):
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
-            data["shelf_code"], data.get("shelf_name"), data.get("location_description")
+            db,
+            data["shelf_code"],
+            data.get("location_description"),
         )
     db.execute(
         """UPDATE Books SET shelf_id=? WHERE isbn=?""",
@@ -238,8 +303,14 @@ def move_book(isbn):
         ),
     )
     db.commit()
-    logger.info(f"Book moved: {data}")
-    return jsonify({"message": "Book updated"})
+    logger.info("Book moved: isbn=%s", isbn)
+    return jsonify(
+        {
+            "message": "Book updated",
+            "shelf_id": shelf_id,
+            "shelf_code": data.get("shelf_code"),
+        }
+    )
 
 
 @bp.route("/<isbn>", methods=["DELETE"])
@@ -315,6 +386,10 @@ def manage_book_page():
 
     return render_template(
         "manage_book.html",
+        owners=[
+            {"user_id": row[0], "name": row[1]}
+            for row in get_db().execute("SELECT user_id, name FROM Users WHERE can_own_books=1 ORDER BY name, user_id")
+        ],
         book=book,
         error=error,
         mode=mode,
