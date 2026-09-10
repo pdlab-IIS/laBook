@@ -870,41 +870,41 @@ select {
     line-height: 1.2;
 }
 
-#booksTable th:nth-child(5),
-#booksTable td:nth-child(5),
-#booksTable th:nth-child(6),
-#booksTable td:nth-child(6) {
+#booksTable th.book-publisher-column,
+#booksTable td.book-publisher-column,
+#booksTable th.book-date-column,
+#booksTable td.book-date-column {
     display: none;
 }
 
-#booksTable th:nth-child(2),
-#booksTable td:nth-child(2) {
+#booksTable th.book-cover-column,
+#booksTable td.book-cover-column {
     width: clamp(56px, 9cqi, 62px);
     text-align: center;
 }
 
-#booksTable th:nth-child(4),
-#booksTable td:nth-child(4) {
+#booksTable th.book-author-column,
+#booksTable td.book-author-column {
     width: clamp(72px, 17cqi, 116px);
 }
 
-#booksTable th:nth-child(7),
-#booksTable td:nth-child(7) {
+#booksTable th.book-location-column,
+#booksTable td.book-location-column {
     width: clamp(58px, 13cqi, 88px);
 }
 
-#booksTable th:nth-child(8),
-#booksTable td:nth-child(8) {
+#booksTable th.book-status-column,
+#booksTable td.book-status-column {
     width: clamp(62px, 14cqi, 90px);
 }
 
-#booksTable td:nth-child(3) {
+#booksTable td.book-title-column {
     line-height: 1.3;
 }
 
-#booksTable td:nth-child(4),
-#booksTable td:nth-child(7),
-#booksTable td:nth-child(8) {
+#booksTable td.book-author-column,
+#booksTable td.book-location-column,
+#booksTable td.book-status-column {
     font-size: 0.88rem;
 }
 
@@ -931,8 +931,8 @@ select {
 }
 
 @container app-page (max-width: 480px) {
-    #booksTable th:nth-child(4),
-    #booksTable td:nth-child(4) {
+    #booksTable th.book-author-column,
+    #booksTable td.book-author-column {
         display: none;
     }
 
@@ -977,6 +977,14 @@ html[data-development-preview-mode="pc"] body {
 
 /* Shared list/manage page layout. Preview modes only provide a frame. */
 /* Selection stays visible independently of the responsive data columns. */
+#bulkEditBtn { --bulk-available: 1; }
+@container app-page (max-width: 760px) {
+    #bulkEditBtn { --bulk-available: 0; display: none; }
+    #booksTable .book-selection { display: none !important; }
+    #booksTable th.book-title-column { width: auto; }
+    .bulk-edit-dialog { display: none !important; }
+}
+
 #booksTable .book-selection {
     width: 36px;
     min-width: 36px;
@@ -1103,13 +1111,13 @@ body.app-page {
 }
 
 @container app-page (min-width: 761px) {
-    #booksTable th:nth-child(2) { width: 7%; }
-    #booksTable th:nth-child(3) { width: 28%; }
-    #booksTable th:nth-child(4) { width: 17%; }
-    #booksTable th:nth-child(5) { width: 15%; }
-    #booksTable th:nth-child(6) { width: 11%; }
-    #booksTable th:nth-child(7) { width: 9%; }
-    #booksTable th:nth-child(8) { width: 8%; }
+    #booksTable th.book-cover-column { width: 7%; }
+    #booksTable th.book-title-column { width: 28%; }
+    #booksTable th.book-author-column { width: 17%; }
+    #booksTable th.book-publisher-column { width: 15%; }
+    #booksTable th.book-date-column { width: 11%; }
+    #booksTable th.book-location-column { width: 9%; }
+    #booksTable th.book-status-column { width: 8%; }
 }
 
 .manage-page .manage-header,

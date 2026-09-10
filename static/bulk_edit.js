@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let selection = [];
     let generation = 0;
     const boxes = () => Array.from(table.querySelectorAll('[data-book-isbn]'));
+    const desktopAvailable = () => getComputedStyle(launch).getPropertyValue('--bulk-available').trim() === '1';
+    const responsiveObserver = new ResizeObserver(() => {
+        if (!desktopAvailable() && active) {
+            active = false;
+            document.body.classList.remove('bulk-edit-active');
+            boxes().forEach(box => { box.checked = false; });
+            dialog.close();
+            sync();
+        }
+    });
+    responsiveObserver.observe(document.body);
 
     function sync() {
         const rows = boxes();
@@ -29,7 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
         all.indeterminate = selected > 0 && selected < rows.length;
         launch.disabled = busy;
         launch.setAttribute('aria-pressed', String(active));
-        document.getElementById('bulkSelectedCount').textContent = String(selected);
         document.getElementById('bulkEditSummary').textContent = `${selected}冊を選択中です。一覧のチェックボックスで対象を選択してください。`;
         fields();
     }
@@ -43,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
             all.disabled = true;
             selection = [];
             launch.disabled = busy;
-            document.getElementById('bulkSelectedCount').textContent = '0';
             document.getElementById('bulkEditSummary').textContent = '0冊を選択中です。一覧の更新後に対象を選択してください。';
             fields();
         }
@@ -64,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     locationMode.addEventListener('change', fields);
     ownerMode.addEventListener('change', fields);
     launch.addEventListener('click', async () => {
+        if (!desktopAvailable() || busy) return;
         document.getElementById('utilityMenuPanel').hidden = true;
         document.getElementById('utilityMenuToggle').setAttribute('aria-expanded', 'false');
         if (active) { locationMode.focus(); return; }
@@ -107,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     form.addEventListener('submit', async event => {
         event.preventDefault();
-        if (busy || save.disabled || !form.reportValidity()) return;
+        if (!desktopAvailable() || busy || save.disabled || !form.reportValidity()) return;
         const payload = {isbns: [...selection]};
         if (locationMode.value === 'set') {
             if (!location.value.trim()) { message.textContent = 'Locationを入力してください。'; return; }
