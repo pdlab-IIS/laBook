@@ -173,6 +173,50 @@ def list_books():
     return jsonify({"total_count": total_count, "books": books})
 
 
+@bp.route("/bulk", methods=["PATCH"])
+def bulk_update_books():
+    """Apply explicitly supplied fields to an explicit selection atomically."""
+    def reject(message, status=400):
+        abort(make_response(jsonify(description=message), status))
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or set(data) - {"isbns", "location", "owner_id"}:
+        reject("Invalid bulk update")
+    isbns = data.get("isbns")
+    if not isinstance(isbns, list) or not 1 <= len(isbns) <= 100:
+        reject("Select between 1 and 100 books")
+    if any(type(value) not in (str, int) or not str(value).isascii()
+           or not str(value).isdigit() or len(str(value)) > 19
+           or not 0 < int(value) <= 2**63 - 1 for value in isbns):
+        reject("Invalid book selection")
+    isbns = list(dict.fromkeys(int(value) for value in isbns))
+    if not {"location", "owner_id"} & data.keys():
+        reject("Choose a field to change")
+    if "location" in data and data["location"] is not None:
+        if not isinstance(data["location"], str) or not data["location"].strip():
+            reject("Enter a Location, or explicitly clear it")
+    db = get_db()
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        placeholders = ",".join("?" for _ in isbns)
+        count = db.execute(f"SELECT COUNT(*) FROM Books WHERE isbn IN ({placeholders})", isbns).fetchone()[0]
+        if count != len(isbns):
+            reject("選択した本が見つかりません。一覧を更新してください。", 409)
+        fields, values = [], []
+        if "owner_id" in data:
+            values.append(validate_owner_id(data["owner_id"]))
+            fields.append("owner_id=?")
+        if "location" in data:
+            values.append(get_or_create_shelf_id(db, data["location"]) if data["location"] is not None else None)
+            fields.append("shelf_id=?")
+        db.execute(f"UPDATE Books SET {', '.join(fields)} WHERE isbn IN ({placeholders})", values + isbns)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return jsonify({"updated_count": len(isbns)})
+
+
 @bp.route("/<isbn>", methods=["GET"])
 def get_book(isbn):
     db = get_db()

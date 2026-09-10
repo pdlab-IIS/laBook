@@ -81,7 +81,7 @@
                 <td><select name="owner_id" id="owner_id">
                     <option value="">未設定</option>
                     {% for owner in owners %}
-                    <option value="{{ owner.user_id }}"{% if book and book['owner_id'] == owner.user_id %} selected{% endif %}>{{ owner.name }} (ID: {{ owner.user_id }})</option>
+                    <option value="{{ owner.user_id }}"{% if book and book['owner_id'] == owner.user_id %} selected{% endif %}>{{ owner.name }}</option>
                     {% endfor %}
                 </select>
                 </td>

@@ -108,7 +108,7 @@ class BookRouteTests(unittest.TestCase):
                 html = response.get_data(as_text=True)
                 self.assertIn('<select name="owner_id" id="owner_id">', html)
                 self.assertIn('<option value="">未設定</option>', html)
-                self.assertIn('&lt;Owner&gt; (ID: 1)', html)
+                self.assertIn('&lt;Owner&gt;</option>', html)
                 self.assertNotIn('<Owner>', html)
                 if "isbn=" in path:
                     self.assertIn('<option value="1" selected>', html)

@@ -45,7 +45,7 @@
                     <select id="ownerEntity">
                         <option value="">新規作成</option>
                         {% for entity in entities %}
-                        <option value="{{ entity.user_id }}" data-name="{{ entity.name }}" data-type="{{ entity.entity_type }}" data-eligible="{{ entity.can_own_books }}">{{ entity.name }} (ID: {{ entity.user_id }})</option>
+                        <option value="{{ entity.user_id }}" data-name="{{ entity.name }}" data-type="{{ entity.entity_type }}" data-eligible="{{ entity.can_own_books }}">{{ entity.name }}</option>
                         {% endfor %}
                     </select>
                 </td></tr>
