@@ -3,6 +3,7 @@
 
 <head>
     <title>laBook[alpha-version]</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script>window.initialShelfFilter = {{ (initial_filter or "")|tojson }};</script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='index.js') }}"></script>
@@ -24,20 +25,94 @@
     <meta property="og:image:alt"    content="ogp of laBook">
 </head>
 
-<body>
+<body class="app-page book-list-page">
     {% include "_development_overlay.html" %}
     <p>バージョンアップしました！棚卸(連続登録)機能は「≡」の中にあります→</p>
-    <a href="./">
-        <h2><i class="fa-solid fa-database"></i>laBook</h2>
-    </a>
-    <input type="text" id="searchInput" style="min-width:400px" placeholder="ISBN / Title / Author / Publisher">
-    <button type="button" id="searchBtn"><i class="fas fa-search" aria-hidden="true"></i></button>
-    <button type="button" id="resetBtn" class="grey" style="margin-left: 0px;"><i class="fas fa-undo" aria-hidden="true"></i></button>
-    <span id="spnLockMode" title="[secret command] Continuous registration mode for inventory">&emsp;</span>
-    <button type="button" id="btnScanner"><i class="fa-solid fa-barcode"></i> scanner</button>
-    <button type="button" id="addBookBtn" class="grey"><i class="fas fa-book-medical" aria-hidden="true"></i> add book</button>
-    <span id="spnSpd"></span>
-    <table id="booksTable" class="book-list-table">
+    <header class="app-header">
+        <a class="app-brand" href="./">
+            <h1><i class="fa-solid fa-database" aria-hidden="true"></i>laBook</h1>
+        </a>
+        <div class="app-header-actions">
+            <button type="button" id="btnScanner" class="app-header-action" aria-label="スキャナー">
+                <i class="fa-solid fa-barcode" aria-hidden="true"></i>
+                <span class="app-header-action__label">SCAN</span>
+            </button>
+            <button type="button" id="addBookBtn" class="app-header-action grey" aria-label="本を追加">
+                <i class="fas fa-book-medical" aria-hidden="true"></i>
+                <span class="app-header-action__label">ADD</span>
+            </button>
+            <div id="utilityMenu" class="utility-menu">
+                <button type="button" id="utilityMenuToggle" class="utility-menu__toggle"
+                        aria-label="メニュー" aria-expanded="false" aria-controls="utilityMenuPanel">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
+                <div id="utilityMenuPanel" class="utility-menu__panel" hidden>
+                    <a class="utility-menu__item" href="{{ url_for('users.manage_users_page') }}">
+                        <i class="fas fa-users" aria-hidden="true"></i>
+                        <span>人物・組織 / 貸出状況</span>
+                    </a>
+                    <button type="button" id="resetBtn" class="utility-menu__item grey">
+                        <i class="fas fa-undo" aria-hidden="true"></i>
+                        <span>Reset</span>
+                    </button>
+                    <button type="button" id="spnLockMode" class="utility-menu__item grey"
+                            title="棚卸し用の連続登録モード">
+                        <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                        <span>棚卸し / Continuous:</span>
+                        <span id="lockModeStatus" class="utility-menu__status" aria-live="polite">OFF</span>
+                    </button>
+                    <div class="utility-menu__item utility-menu__access">
+                        <i class="fa-solid fa-network-wired" aria-hidden="true"></i>
+                        <span>Access mode:</span>
+                        <span id="spnSpd" class="utility-menu__status" aria-live="polite"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="search-controls">
+        <div id="searchInputShell" class="search-input-shell">
+            <input type="text" id="searchInput" placeholder="ISBN / Title / Author / Publisher / Location"
+                   aria-describedby="inventoryIsbnMessage" aria-invalid="false">
+            <span id="inventoryLocationBadge" class="inventory-location-badge" hidden>
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <span id="inventoryLocationText"></span>
+            </span>
+        </div>
+        <button type="button" id="searchBtn" aria-label="検索"><i class="fas fa-search" aria-hidden="true"></i></button>
+    </div>
+    <p id="inventoryIsbnMessage" class="inventory-isbn-message" role="status"
+       aria-live="polite" hidden></p>
+    <p id="inventoryProcessing" class="processing-indicator inventory-processing" role="status"
+       aria-live="polite" hidden>
+        <span class="processing-spinner" aria-hidden="true"></span>
+        <span id="inventoryProcessingText">棚卸し処理中...</span>
+    </p>
+    <div id="inventoryLocationModal" class="inventory-location-modal" role="dialog" aria-modal="true"
+         aria-labelledby="inventoryLocationTitle" hidden>
+        <form id="inventoryLocationForm" class="inventory-location-modal__form">
+            <h2 id="inventoryLocationTitle">
+                <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                棚卸し / Continuous
+            </h2>
+            <label for="inventoryLocationInput">Location</label>
+            <input type="text" id="inventoryLocationInput" autocomplete="off" required
+                   placeholder="Location">
+            <div class="inventory-location-modal__actions">
+                <button type="button" id="inventoryLocationCancel" class="grey">Cancel</button>
+                <button type="submit" id="inventoryLocationStart">Start</button>
+            </div>
+        </form>
+    </div>
+    <div id="bookListLoading" class="processing-indicator book-list-loading" role="status"
+         aria-live="polite" hidden>
+        <span class="processing-spinner" aria-hidden="true"></span>
+        <span>Book listを読み込み中...</span>
+    </div>
+    {% with pagination_id="paginationTop", pagination_label="書籍一覧の上のページ切り替え" %}
+        {% include "_pagination.html" %}
+    {% endwith %}
+    <table id="booksTable" class="book-list-table" aria-describedby="bookListLoading">
         <thead>
             <tr>
                 <th>Cover</th>
@@ -68,11 +143,9 @@
             <!-- Filled by index.js -->
         </tbody>
     </table>
-    <div id="pagination" style="margin: 20px 0; text-align: center;">
-    <button id="prevPageBtn"><i class="fa-solid fa-angles-left"></i> Prev</button>
-    <span id="pageInfo"></span>
-    <button id="nextPageBtn">Next <i class="fa-solid fa-angles-right"></i></button>
-    </div>
+    {% with pagination_id="pagination", pagination_label="書籍一覧の下のページ切り替え" %}
+        {% include "_pagination.html" %}
+    {% endwith %}
 </body>
 
 </html>

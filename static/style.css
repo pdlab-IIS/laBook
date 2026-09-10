@@ -20,6 +20,11 @@
     --color-body: #4b4b4b;
     --color-bg-l1: #cecece;
     --color-bg-l2: #fafafa;
+    --narrow-page-gutter: clamp(20px, 4vw, 28px);
+}
+
+html {
+    background-color: var(--color-bg);
 }
 
 body {
@@ -27,6 +32,7 @@ body {
     margin: 20px;
     background-color: var(--color-bg);
     color: var(--color-body);
+    container: app-page / inline-size;
 }
 
 /* Content Box                            */
@@ -79,6 +85,14 @@ a.book_title:active {
     color: var(--color-key-cont);
 }
 
+.book-compact-meta {
+    display: none;
+}
+
+.book-compact-author {
+    display: none;
+}
+
 /* book description                       */
 a.book_description {
     color: var(--color-body);
@@ -101,13 +115,289 @@ a.book_description:active {
 /* -------------------------------------- */
 /* Headder                                */
 /* -------------------------------------- */
+h1,
 h2 {
     color: var(--color-body);
     text-decoration: none;
 }
 
+h1:hover,
 h2:hover {
     text-decoration: none;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.app-brand {
+    flex: 0 1 auto;
+}
+
+.app-brand h1 {
+    white-space: nowrap;
+}
+
+.app-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 0;
+}
+
+.app-header-action {
+    width: auto;
+    white-space: nowrap;
+}
+
+.utility-menu {
+    position: relative;
+}
+
+.utility-menu__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background-color: var(--color-body);
+    color: #fff;
+    cursor: pointer;
+    list-style: none;
+}
+
+.utility-menu__toggle:hover,
+.utility-menu__toggle[aria-expanded="true"] {
+    background-color: var(--color-key-d1);
+}
+
+.utility-menu__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 100;
+    display: grid;
+    gap: 6px;
+    width: 280px;
+    padding: 8px;
+    border: 1px solid #8c8c8c;
+    border-radius: 12px;
+    background-color: var(--color-bg-l2);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.utility-menu__panel[hidden] {
+    display: none;
+}
+
+.utility-menu__item {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: left;
+}
+
+.utility-menu__access {
+    background-color: var(--color-bg-l1);
+    color: var(--color-body);
+}
+
+.utility-menu__status {
+    justify-self: end;
+    font-size: 0.8em;
+    white-space: nowrap;
+}
+
+.utility-menu__status a {
+    margin: 0;
+    padding: 0;
+}
+
+.utility-menu__item.is-active .utility-menu__status {
+    color: var(--color-key-cont);
+    font-weight: bold;
+}
+
+.search-controls {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    width: min(100%, 640px);
+}
+
+.search-input-shell {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.search-controls #searchInput {
+    width: 100%;
+    min-width: 0;
+}
+
+.search-input-shell.is-inventory-mode #searchInput {
+    padding-right: calc(45% + 20px);
+}
+
+.inventory-location-badge {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 45%;
+    transform: translateY(-50%);
+    overflow: hidden;
+    color: #b00020;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.inventory-location-badge[hidden] {
+    display: none;
+}
+
+.inventory-location-badge span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inventory-isbn-message {
+    width: min(100%, 640px);
+    margin: 6px 0 12px;
+    padding: 8px 10px;
+    border-left: 4px solid currentColor;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.52);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.inventory-isbn-message.is-invalid {
+    color: #b00020;
+}
+
+.inventory-isbn-message.is-success {
+    color: #126a37;
+}
+
+.inventory-isbn-message.is-unknown {
+    color: #8a4b08;
+}
+
+.inventory-isbn-message[hidden] {
+    display: none;
+}
+
+.processing-indicator {
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+}
+
+.processing-indicator:not([hidden]) {
+    display: flex;
+}
+
+.processing-spinner {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border: 3px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.inventory-processing {
+    width: min(100%, 640px);
+    margin: 6px 0 12px;
+    color: #b00020;
+}
+
+.book-list-loading {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    color: var(--color-key-n0);
+}
+
+.processing-indicator[hidden] {
+    display: none;
+}
+
+.inventory-location-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    background: rgba(20, 23, 27, 0.62);
+    color: var(--color-body);
+    backdrop-filter: blur(2px);
+}
+
+.inventory-location-modal[hidden] {
+    display: none;
+}
+
+.inventory-location-modal__form {
+    display: grid;
+    gap: 14px;
+    width: min(420px, calc(100vw - 40px));
+    padding: 24px;
+    border-radius: 14px;
+    background: var(--color-bg-l2);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.38);
+}
+
+.inventory-location-modal__form h2 {
+    font-size: 1.3rem;
+}
+
+.inventory-location-modal__form label {
+    margin: 0;
+}
+
+.inventory-location-modal__form #inventoryLocationInput {
+    width: 100%;
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.inventory-location-modal__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.inventory-location-modal__actions button {
+    width: 100%;
+    margin: 0;
+    font-size: 1rem;
+}
+
+.search-controls #searchBtn {
+    flex: 0 0 auto;
 }
 
 /* -------------------------------------- */
@@ -229,7 +519,7 @@ td {
         margin: 10px;
         margin-right: 10px;
         padding: 10px;
-        font-size: 2.5rem;
+        font-size: 1rem;
     }
 
     .content-box {
@@ -242,22 +532,31 @@ td {
     input[type="file"],
     input[type="date"],
     select {
-        font-size: 2rem;
+        font-size: 1rem;
     }
 
     button {
-        font-size: 2.5rem;
-        width: 100%
+        width: auto;
+        font-size: 1rem;
     }
 
     table {
         width: 100%;
+        margin-right: 0;
+        margin-left: 0;
         overflow-x: auto;
         margin-top: 15px;
-        font-size: 2rem;
+        font-size: 1rem;
     }
 
 
+}
+
+@media (max-width: 700px) {
+    body {
+        margin: 0;
+        padding: var(--narrow-page-gutter);
+    }
 }
 
 #camera {
@@ -348,6 +647,18 @@ td {
     color: #f7f7f7;
     font: 600 12px/1.2 Arial, sans-serif;
     backdrop-filter: blur(8px);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.development-environment-overlay.is-dragging {
+    cursor: grabbing;
+}
+
+.development-environment-overlay__controls button {
+    cursor: pointer;
+    touch-action: manipulation;
 }
 
 .development-environment-overlay__heading,
@@ -398,50 +709,247 @@ td {
     text-align: right;
 }
 
+html[data-development-preview-mode="sp700"] .development-environment-overlay {
+    top: auto;
+    bottom: 12px;
+}
+
+/* The development mode only supplies a preview frame; narrow layouts below
+   are driven by the rendered page width, not this development attribute. */
 html[data-development-preview-mode="sp700"] body {
     width: 700px;
     min-width: 700px;
     min-height: min(844px, calc(100vh - 32px));
     margin: 16px auto;
-    padding: 10px;
+    padding: var(--narrow-page-gutter);
     outline: 4px solid #333943;
     border-radius: 14px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
-    font-size: 2.5rem;
     overflow-x: auto;
 }
 
-html[data-development-preview-mode="sp700"] .content-box {
+/* Product responsive rules: keep narrow-screen behavior independent from
+   development preview modes. */
+/* Keep the compact table through tablet portrait widths. The seven-column
+   desktop table has enough room once the rendered page exceeds 760px. */
+@container app-page (max-width: 760px) {
+.content-box {
     padding: 10px;
     margin: 10px;
 }
 
-html[data-development-preview-mode="sp700"] input[type="text"],
-html[data-development-preview-mode="sp700"] input[type="number"],
-html[data-development-preview-mode="sp700"] input[type="file"],
-html[data-development-preview-mode="sp700"] input[type="date"],
-html[data-development-preview-mode="sp700"] select {
+input[type="text"],
+input[type="number"],
+input[type="file"],
+input[type="date"],
+select {
     font-size: 2rem;
 }
 
-html[data-development-preview-mode="sp700"] body > button,
-html[data-development-preview-mode="sp700"] body > form button,
-html[data-development-preview-mode="sp700"] body > h2 button {
+.app-header,
+.search-controls,
+.inventory-isbn-message,
+#booksTable,
+#pagination {
     width: 100%;
-    font-size: 2.5rem;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
 }
 
-html[data-development-preview-mode="sp700"] table {
+.app-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.app-brand {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.app-brand h1 {
+    overflow: hidden;
+    font-size: clamp(1.8rem, 6cqi, 2.5rem);
+    text-overflow: ellipsis;
+}
+
+.app-header-actions {
+    gap: clamp(4px, 1.5cqi, 8px);
+    margin-left: auto;
+}
+
+.app-header .app-header-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: auto;
+    min-width: clamp(60px, 17cqi, 78px);
+    height: clamp(42px, 11cqi, 52px);
+    margin: 0;
+    padding: 0 clamp(6px, 2cqi, 10px);
+    font-size: clamp(1rem, 3.5cqi, 1.4rem);
+}
+
+.utility-menu__toggle {
+    width: clamp(42px, 11cqi, 52px);
+    height: clamp(42px, 11cqi, 52px);
+    margin: 0;
+    padding: 0;
+    font-size: clamp(1.2rem, 4cqi, 1.6rem);
+}
+
+.app-header-action__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: nowrap;
+    clip-path: none;
+    font-size: clamp(0.68rem, 2.4cqi, 0.85rem);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.utility-menu__panel {
+    width: min(280px, calc(100cqi - 2px));
+}
+
+.utility-menu__panel .utility-menu__item {
     width: 100%;
-    margin-top: 15px;
-    overflow-x: auto;
-    font-size: 2rem;
+    font-size: 1rem;
+}
+
+.search-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(52px, 14cqi, 76px);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.search-input-shell {
+    width: 100%;
+}
+
+.search-controls #searchInput {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none;
+    margin: 0;
+    font-size: clamp(1rem, 4cqi, 1.6rem);
+}
+
+.search-controls #searchBtn {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    font-size: clamp(1.4rem, 5cqi, 2rem);
+}
+
+#booksTable {
+    width: 100%;
+    margin: 12px 0;
+    table-layout: fixed;
+    font-size: 1rem;
+}
+
+#booksTable th,
+#booksTable td {
+    min-width: 0;
+    padding: 7px 5px;
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+}
+
+#booksTable th {
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+
+#booksTable th:nth-child(4),
+#booksTable td:nth-child(4),
+#booksTable th:nth-child(5),
+#booksTable td:nth-child(5) {
+    display: none;
+}
+
+#booksTable th:nth-child(1),
+#booksTable td:nth-child(1) {
+    width: clamp(56px, 9cqi, 62px);
+    text-align: center;
+}
+
+#booksTable th:nth-child(3),
+#booksTable td:nth-child(3) {
+    width: clamp(72px, 17cqi, 116px);
+}
+
+#booksTable th:nth-child(6),
+#booksTable td:nth-child(6) {
+    width: clamp(58px, 13cqi, 88px);
+}
+
+#booksTable th:nth-child(7),
+#booksTable td:nth-child(7) {
+    width: clamp(62px, 14cqi, 90px);
+}
+
+#booksTable td:nth-child(2) {
+    line-height: 1.3;
+}
+
+#booksTable td:nth-child(3),
+#booksTable td:nth-child(6),
+#booksTable td:nth-child(7) {
+    font-size: 0.88rem;
+}
+
+#booksTable .book-title {
+    display: block;
+    margin: 0;
+    padding: 0;
+    font-size: 1rem;
+}
+
+#booksTable .book-compact-meta {
+    display: block;
+    margin-top: 4px;
+    color: #686868;
+    font-size: 0.72rem;
+    font-weight: normal;
+    line-height: 1.25;
+}
+
+#booksTable img {
+    max-width: 46px !important;
+    max-height: 68px !important;
+}
+}
+
+@container app-page (max-width: 480px) {
+    #booksTable th:nth-child(3),
+    #booksTable td:nth-child(3) {
+        display: none;
+    }
+
+    #booksTable .book-compact-author {
+        display: block;
+        margin-top: 4px;
+        color: #555;
+        font-size: 0.78rem;
+        font-weight: normal;
+        line-height: 1.25;
+    }
 }
 
 html[data-development-preview-mode="pc"] body {
-    width: 1180px;
-    min-width: 1180px;
-    max-width: none;
+    width: 1000px;
+    min-width: 1000px;
+    max-width: 1000px;
     margin: 20px auto;
     padding: 0;
     font-size: 1rem;
@@ -457,5 +965,376 @@ html[data-development-preview-mode="pc"] body {
     html[data-development-preview-mode="pc"] table {
         width: auto;
         font-size: 1rem;
+    }
+}
+
+@media (max-width: 700px) {
+    .development-environment-overlay {
+        top: auto;
+        bottom: 12px;
+    }
+}
+
+/* Shared list/manage page layout. Preview modes only provide a frame. */
+body.app-page {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: clamp(20px, 3vw, 40px);
+    font-size: 1rem;
+}
+
+.app-page .app-header,
+.app-page .search-controls,
+.app-page .inventory-isbn-message,
+.app-page .inventory-processing,
+.app-page .pagination,
+.app-page #booksTable {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.app-page .app-brand,
+.app-page .book-title {
+    margin: 0;
+    padding: 0;
+}
+
+.app-page .app-header-actions {
+    margin-left: auto;
+}
+
+.app-page :is(.app-header, .search-controls, .pagination, .inventory-location-modal,
+              .manage-header, .cover-editor, .manage-actions) button,
+.app-page #searchBtn {
+    height: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    font: 400 1rem/1.2 Arial, sans-serif;
+    vertical-align: middle;
+}
+
+.app-page .app-header-action__label {
+    font-size: inherit;
+}
+
+.app-page .utility-menu__toggle {
+    width: 44px;
+}
+
+.app-page #searchInput {
+    margin: 0;
+    height: 44px;
+    font-size: 1rem;
+}
+
+.app-page .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin: 16px 0;
+    text-align: left;
+}
+
+.pagination [data-page-info] {
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.app-page button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.app-page #booksTable {
+    table-layout: fixed;
+}
+
+.app-page #booksTable :is(th, td) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@container app-page (min-width: 761px) {
+    #booksTable th:nth-child(1) { width: 8%; }
+    #booksTable th:nth-child(2) { width: 30%; }
+    #booksTable th:nth-child(3) { width: 18%; }
+    #booksTable th:nth-child(4) { width: 16%; }
+    #booksTable th:nth-child(5) { width: 11%; }
+    #booksTable th:nth-child(6) { width: 9%; }
+    #booksTable th:nth-child(7) { width: 8%; }
+}
+
+.manage-page .manage-header,
+.manage-page .cover-editor,
+.manage-page .manage-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 20px;
+}
+
+.manage-page .cover-editor {
+    align-items: flex-end;
+}
+
+.manage-page #cover_preview {
+    width: 120px;
+    height: 170px;
+    object-fit: contain;
+    object-position: left bottom;
+}
+
+.manage-page #coverUploadForm {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 12px;
+    border: 2px dashed #888;
+    border-radius: 8px;
+}
+
+.manage-page :is(form, #reviewTableContainer) {
+    width: 100%;
+    min-width: 0;
+}
+
+.manage-page .book-form-table {
+    width: 100%;
+    table-layout: fixed;
+    margin: 0 0 16px;
+    background: transparent;
+}
+
+.manage-page .book-form-table :is(td, th) {
+    min-width: 0;
+    padding: 8px 0;
+    border: 0;
+    overflow-wrap: anywhere;
+}
+
+.manage-page .book-form-table td:first-child {
+    width: 180px;
+}
+
+.manage-page .book-form-table label {
+    margin: 0;
+}
+
+.manage-page :is(input, textarea, select) {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    inline-size: 100%;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    margin: 0;
+    padding: 10px;
+    font: 400 1rem/1.4 Arial, sans-serif;
+}
+
+/* Native date controls (especially WebKit) must not impose an intrinsic
+   width larger than their table cell. Keep the native date input/picker. */
+.manage-page input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: calc(1.4rem + 22px);
+}
+
+.manage-page input[type="date"]::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+}
+
+.manage-page input[type="date"]::-webkit-datetime-edit {
+    min-width: 0;
+    padding: 0;
+}
+
+.manage-page textarea {
+    resize: vertical;
+    border: 1px solid var(--color-bg-l1);
+    border-radius: 4px;
+}
+
+.manage-page .owner-settings {
+    margin: 24px 0;
+    padding: 16px;
+    border: 1px solid #888;
+    border-radius: 8px;
+}
+
+.manage-page .owner-settings p {
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+}
+
+.people-page .manage-header {
+    flex-wrap: wrap;
+}
+
+.people-page h1 {
+    font-size: clamp(1.3rem, 4cqi, 2rem);
+    margin: 0;
+}
+
+.people-page section {
+    margin-top: 24px;
+    min-width: 0;
+}
+
+.people-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.people-navigation a[aria-current] {
+    text-decoration: underline;
+}
+
+.entity-list {
+    list-style: none;
+    padding: 0;
+}
+
+.entity-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 0;
+    border-bottom: 1px solid #888;
+    overflow-wrap: anywhere;
+}
+
+.entity-card > div {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.people-page .loans-table {
+    width: 100%;
+    table-layout: fixed;
+    margin: 16px 0;
+}
+
+.people-page .loans-table :is(td, th) {
+    min-width: 0;
+    padding: 10px;
+    overflow-wrap: anywhere;
+}
+
+.people-page .loans-table small {
+    display: block;
+}
+
+.people-page .loans-table a {
+    margin: 0;
+    padding: 0;
+}
+
+@container app-page (max-width: 760px) {
+    .people-page .loans-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .people-page .loans-table :is(tbody, tr, td) {
+        display: block;
+        width: 100%;
+    }
+
+    .people-page .loans-table tr {
+        margin-bottom: 16px;
+    }
+
+    .people-page .loans-table td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: bold;
+    }
+}
+
+.manage-page hr {
+    margin: 24px 0;
+    border: 0;
+    border-top: 1px solid #888;
+}
+
+.manage-page #reviewTable {
+    background: var(--color-bg-l1);
+}
+
+.manage-page #reviewTable :is(td, th) {
+    padding: 10px;
+}
+
+.manage-page #reviewTable th:first-child {
+    width: 25%;
+}
+
+@container app-page (max-width: 760px) {
+    .app-page :is(.app-header, .search-controls, .pagination, .inventory-location-modal,
+                  .manage-header, .cover-editor, .manage-actions) button,
+    .app-page #searchBtn {
+        height: 48px;
+        min-height: 48px;
+        font-size: 0.875rem;
+        padding: 0 10px;
+    }
+
+    .app-page #searchInput {
+        height: 48px;
+    }
+
+    .app-page .app-header .app-header-action {
+        flex-direction: column;
+        gap: 2px;
+        min-width: 52px;
+        padding: 4px 6px;
+    }
+
+    .app-page .utility-menu__toggle {
+        width: 48px;
+    }
+
+    .app-page .app-brand h1 {
+        font-size: clamp(1.4rem, 6cqi, 2.5rem);
+    }
+
+    .manage-page .book-form-table:not(#reviewTable) :is(tbody, tr, td) {
+        display: block;
+        width: 100%;
+    }
+
+    .manage-page .book-form-table:not(#reviewTable) td {
+        padding: 4px 0;
+    }
+
+    .manage-page .book-form-table:not(#reviewTable) tr {
+        margin-bottom: 12px;
+    }
+
+    .manage-page .manage-actions button {
+        max-width: 100%;
+    }
+}
+
+@container app-page (max-width: 480px) {
+    .pagination [data-page-info] {
+        order: 1;
+        flex-basis: 100%;
     }
 }

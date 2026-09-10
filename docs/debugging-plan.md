@@ -66,6 +66,10 @@ DB修復の承認事項と実行手順は[`docs/database-repair.md`](database-re
 日次backupの保持方針と本番導入手順は[`docs/backup-operations.md`](backup-operations.md)に分離した。
 ログの記録項目と移行確認手順は[`docs/logging-operations.md`](logging-operations.md)に分離した。
 
+## 1.2 変更
+
+tailscale経由の実機のipが`100.110.113.62`に変更になった
+
 ## 2. システム全体像
 
 ```text
@@ -420,7 +424,8 @@ Step 3から5では修復直前backup `/home/pdlab/labook/backups/predeploy/libr
 
 | 設定名 | 利用箇所 | 備考 |
 |---|---|---|
-| `RAKUTEN_APP_ID` | `fetch_book_info.py` | 書誌検索 |
+| `RAKUTEN_APP_ID` | `fetch_book_info.py` | 楽天Books書誌検索のApp ID |
+| `RAKUTEN_ACCESS_KEY` | `fetch_book_info.py` | 楽天Books書誌検索のAccess Key。HTTPヘッダーで送信 |
 | `GOOGLE_API_KEY` | `fetch_book_info.py` | 書誌検索 |
 | `NOTION_TOKEN` | `routes/notion.py`, `slack_notify.py` | Notion read/write |
 | `NOTION_DATABASE_ID` | 同上 | tokenほど強い秘密ではないが設定として一緒に管理 |
@@ -482,6 +487,7 @@ SOPSに保存する値の例:
 
 ```dotenv
 RAKUTEN_APP_ID=...
+RAKUTEN_ACCESS_KEY=...
 GOOGLE_API_KEY=...
 NOTION_TOKEN=...
 NOTION_DATABASE_ID=...
@@ -492,6 +498,7 @@ SLACK_WEBHOOK_URL=...
 
 ```dotenv
 RAKUTEN_APP_ID=
+RAKUTEN_ACCESS_KEY=
 GOOGLE_API_KEY=
 NOTION_TOKEN=
 NOTION_DATABASE_ID=
@@ -544,6 +551,19 @@ sops decrypt --output .env secrets/dev.enc.env
 - 外部API呼び出し時のURLにkeyを含める場合、そのURLをログへ出さない
 
 ### 8.7 本番RPiへの渡し方
+
+2026-09-03に楽天Books用の`RAKUTEN_APP_ID`と`RAKUTEN_ACCESS_KEY`を
+次の短期構成で本番RPiへ反映した。
+
+- ローカルの`keys.py`全体はコピーせず、対象の2設定だけをSSHの標準入力で転送
+- `/etc/labook/metadata.env`へroot:root、mode 0600で直接配置
+- `labook.service`の`EnvironmentFile=-/etc/labook/metadata.env`から読み込み
+- 値をコマンドライン、journal、作業用ファイルへ出さない
+- unit適用前に`systemd-analyze verify`、適用後にservice状態と`/healthz`を確認
+
+`config.py`は環境変数を`keys.py`より優先するため、既存の本番設定を残したまま
+楽天の2設定だけを上書きできる。恒久策としてのSOPSまたはsystemd credentialsへの
+移行方針は引き続き有効とする。
 
 短期案:
 

@@ -400,8 +400,12 @@ async function preLoanProcess() {
         const resp = await fetch(`/users/by_name/${encodeURIComponent(name)}`);
         if (resp.ok) {
             const user = await resp.json();
+            if (user.entity_type !== 'person') {
+                alert('貸出・返却には人物を指定してください。');
+                return false;
+            }
             return user.user_id;
-        } else {
+        } else if (resp.status === 404) {
             const createResp = await fetch('/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -414,6 +418,9 @@ async function preLoanProcess() {
                 alert('Failed to create user.');
                 return false;
             }
+        } else {
+            alert('Failed to check user existence.');
+            return false;
         }
     } catch (e) {
         alert('Failed to check user existence.');

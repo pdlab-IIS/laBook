@@ -24,8 +24,34 @@ active and waiting for its first scheduled run.
 - Existing historical backup directories and unrelated files are not included
   in automatic retention.
 
-Off-host encrypted backup is a separate requirement and remains blocked until
-an approved encryption recipient is available.
+Automated off-host backup with encryption at rest is a separate requirement and
+remains pending until an approved encryption recipient is available. The manual
+development-machine copy below uses encrypted transport and restricted local
+permissions; it does not establish an encrypted-at-rest backup system.
+
+## Approved development-machine copies
+
+On 2026-09-08, the user explicitly authorized copying production DB backups to
+the current development machine, including future copies in this workflow.
+The approved destination is `C:\workspace\laBook\backups\` on the current
+development machine (Tailscale address at authorization: `100.74.34.64`).
+This records standing permission, not a new recurring transfer schedule.
+
+- Copy a verified SQLite Backup API snapshot, not the live database file.
+- Use SSH/SCP to the verified production host; the current address is
+  `100.110.113.62`, with existing SSH host identity `100.65.97.87`.
+- Create a separate destination folder per deployment and restrict its Windows
+  ACL to the current development user and SYSTEM before transfer.
+- Compare the source and destination SHA-256 hashes, then verify a restore into
+  a disposable database and check integrity and foreign keys.
+- Keep DB files excluded from Git. Do not publish DB contents or copy secret
+  configuration files as part of this authorization.
+- Do not overwrite the development application's active `library.db`, remove
+  historical backups, or transfer to another machine or third-party service
+  without separate authorization.
+
+The first copy under this authorization was completed and verified on
+2026-09-08; see [the deployment record](deployment-20260908.md).
 
 ## Production installation
 

@@ -13,6 +13,9 @@ class PublicationDateTests(unittest.TestCase):
             "2026": "2026-01-01",
             "2026-09": "2026-09-01",
             "2026-09-01": "2026-09-01",
+            "2026年": "2026-01-01",
+            "2026年9月": "2026-09-01",
+            "2026年9月2日": "2026-09-02",
         }
 
         for value, expected in cases.items():
@@ -28,6 +31,42 @@ class PublicationDateTests(unittest.TestCase):
 
 
 class ProviderTests(unittest.TestCase):
+    @mock.patch("fetch_book_info.get_setting")
+    @mock.patch("fetch_book_info.requests.get")
+    def test_rakuten_uses_new_endpoint_and_access_key_header(self, get, get_setting):
+        get_setting.side_effect = {
+            "RAKUTEN_APP_ID": "dummy-app-id",
+            "RAKUTEN_ACCESS_KEY": "dummy-access-key",
+        }.__getitem__
+        response = mock.Mock()
+        response.json.return_value = {
+            "Items": [
+                {
+                    "title": "Test title",
+                    "author": "Test author",
+                    "publisherName": "Test publisher",
+                    "salesDate": "2026年9月2日",
+                    "largeImageUrl": "https://example.test/cover.jpg",
+                }
+            ]
+        }
+        get.return_value = response
+
+        result = fetch_book_info.get_rakuten_book_info("9780000000001")
+
+        self.assertEqual(result["title"], "Test title")
+        response.raise_for_status.assert_called_once_with()
+        self.assertEqual(
+            get.call_args.args[0],
+            "https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404",
+        )
+        self.assertEqual(get.call_args.kwargs["headers"], {"accessKey": "dummy-access-key"})
+        self.assertNotIn("accessKey", get.call_args.kwargs["params"])
+        self.assertEqual(get.call_args.kwargs["params"]["applicationId"], "dummy-app-id")
+        self.assertEqual(get.call_args.kwargs["params"]["isbn"], "9780000000001")
+        self.assertEqual(get.call_args.kwargs["params"]["formatVersion"], 2)
+        self.assertEqual(get.call_args.kwargs["timeout"], EXTERNAL_API_TIMEOUT)
+
     @mock.patch("fetch_book_info.get_setting", return_value="dummy-key")
     @mock.patch("fetch_book_info.requests.get")
     def test_google_request_has_timeout(self, get, _get_setting):
@@ -40,6 +79,31 @@ class ProviderTests(unittest.TestCase):
         response.raise_for_status.assert_called_once_with()
         self.assertEqual(get.call_args.kwargs["timeout"], EXTERNAL_API_TIMEOUT)
         self.assertEqual(get.call_args.kwargs["params"]["key"], "dummy-key")
+
+    @mock.patch("fetch_book_info.get_setting", return_value="dummy-key")
+    @mock.patch("fetch_book_info.requests.get")
+    def test_google_legacy_thumbnail_url_is_upgraded_to_https(self, get, _get_setting):
+        response = mock.Mock()
+        response.json.return_value = {
+            "items": [
+                {
+                    "volumeInfo": {
+                        "title": "Google cover test",
+                        "imageLinks": {
+                            "thumbnail": "http://books.google.com/books?id=test&img=1"
+                        },
+                    }
+                }
+            ]
+        }
+        get.return_value = response
+
+        result = fetch_book_info.get_google_book_info("9780000000001")
+
+        self.assertEqual(
+            result["cover_url"],
+            "https://books.google.com/books?id=test&img=1",
+        )
 
     @mock.patch("fetch_book_info.save_cover_image", return_value=None)
     @mock.patch("fetch_book_info.get_ndl_book_info", return_value=None)

@@ -12,7 +12,6 @@ let currentRequestId = 0;
 
 let currentPage = 1;
 const pageSize = 25;
-let lastBooksCount = 0;
 let totalBooksCount = 0;
 let lastkey = "";
 
@@ -21,18 +20,225 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const searchInput = document.getElementById('searchInput');
     const spnLockMode = document.getElementById('spnLockMode');
+    const lockModeStatus = document.getElementById('lockModeStatus');
     const spnSpd = document.getElementById('spnSpd');
+    const utilityMenu = document.getElementById('utilityMenu');
+    const utilityMenuToggle = utilityMenu.querySelector('.utility-menu__toggle');
+    const utilityMenuPanel = document.getElementById('utilityMenuPanel');
+    const searchInputShell = document.getElementById('searchInputShell');
+    const inventoryLocationBadge = document.getElementById('inventoryLocationBadge');
+    const inventoryLocationText = document.getElementById('inventoryLocationText');
+    const inventoryLocationModal = document.getElementById('inventoryLocationModal');
+    const inventoryLocationForm = document.getElementById('inventoryLocationForm');
+    const inventoryLocationInput = document.getElementById('inventoryLocationInput');
+    const inventoryIsbnMessage = document.getElementById('inventoryIsbnMessage');
+    const inventoryProcessing = document.getElementById('inventoryProcessing');
+    const inventoryProcessingText = document.getElementById('inventoryProcessingText');
+    const searchBtn = document.getElementById('searchBtn');
+
+    function setInventoryIsbnMessage(message = '', result = '') {
+        inventoryIsbnMessage.textContent = message;
+        inventoryIsbnMessage.hidden = !message;
+        inventoryIsbnMessage.classList.toggle('is-invalid', result === 'invalid');
+        inventoryIsbnMessage.classList.toggle('is-success', result === 'success');
+        inventoryIsbnMessage.classList.toggle('is-unknown', result === 'unknown');
+        searchInput.setAttribute('aria-invalid', result === 'invalid' ? 'true' : 'false');
+    }
+
+    function validateInventoryIsbnInput() {
+        const normalizedIsbn = searchInput.value.trim().replace(/[-\s]/g, '').toUpperCase();
+        if (!isbnValidate(normalizedIsbn)) {
+            setInventoryIsbnMessage(
+                'invalid / 無効: ISBN-10またはISBN-13を入力してください。',
+                'invalid'
+            );
+            searchInput.select();
+            return null;
+        }
+
+        setInventoryIsbnMessage();
+        return normalizedIsbn;
+    }
+
+    function setInventoryProcessing(active, isbn = '') {
+        inventoryProcessing.hidden = !active;
+        inventoryProcessingText.textContent = active
+            ? `棚卸し処理中: ${isbn}`
+            : '棚卸し処理中...';
+        searchInput.disabled = active;
+        searchBtn.disabled = active;
+        searchInputShell.setAttribute('aria-busy', String(active));
+    }
+
+    function rememberShelf(result, fallbackLocation) {
+        const shelfId = Number(result && result.shelf_id);
+        const shelfCode = (result && result.shelf_code) || fallbackLocation;
+        if (Number.isInteger(shelfId) && shelfId > 0 && shelfCode) {
+            shelfCache[shelfId] = shelfCode;
+        }
+    }
+
+    async function processInventoryIsbn(isbn) {
+        const inventoryLocation = lockModeLocation;
+        setInventoryIsbnMessage();
+        setInventoryProcessing(true, isbn);
+
+        try {
+            if (await isBookExist(isbn)) {
+                const response = await fetch(`/books/move/${isbn}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ shelf_code: inventoryLocation })
+                });
+                if (!response.ok) {
+                    throw new Error(`Book move failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                rememberShelf(result, inventoryLocation);
+                searchInput.value = '';
+                setInventoryIsbnMessage(
+                    `success / 成功: ${isbn} を Location ${inventoryLocation} に登録しました。`,
+                    'success'
+                );
+                musicRegister.play();
+                await updateBooksTable();
+                return;
+            }
+
+            const metadataResponse = await fetch(`/books/api/fetch_book_info/${isbn}`);
+            if (!metadataResponse.ok) {
+                throw new Error(`Book metadata lookup failed with status ${metadataResponse.status}`);
+            }
+
+            const bookData = await metadataResponse.json();
+            if (!bookData || !bookData.title) {
+                setInventoryIsbnMessage(
+                    'unknown / 書誌情報なし: ISBNは有効ですが、書誌検索にヒットしませんでした。',
+                    'unknown'
+                );
+                musicAlert.play();
+                return;
+            }
+
+            const addResponse = await fetch('/books', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    isbn: bookData.isbn,
+                    title: bookData.title,
+                    author: bookData.author,
+                    publisher: bookData.publisher,
+                    publication_date: bookData.publication_date,
+                    cover_image_path: bookData.cover_image_path,
+                    shelf_code: inventoryLocation
+                })
+            });
+            if (!addResponse.ok) {
+                throw new Error(`Book add failed with status ${addResponse.status}`);
+            }
+
+            const result = await addResponse.json();
+            rememberShelf(result, inventoryLocation);
+            searchInput.value = '';
+            setInventoryIsbnMessage(
+                `success / 成功: ${isbn} を Location ${inventoryLocation} に追加しました。`,
+                'success'
+            );
+            musicNewEntry.play();
+            await updateBooksTable();
+        } catch (error) {
+            console.error('Inventory processing failed:', error);
+            setInventoryIsbnMessage(
+                'error / エラー: 棚卸し処理に失敗しました。もう一度お試しください。',
+                'invalid'
+            );
+            musicAlert.play();
+        } finally {
+            setInventoryProcessing(false);
+            searchInput.focus();
+            if (searchInput.value) searchInput.select();
+        }
+    }
+
+    function setLockModeStatus(active = false, detail = '') {
+        lockModeStatus.textContent = active ? 'ON' : 'OFF';
+        lockModeStatus.title = detail;
+        spnLockMode.classList.toggle('is-active', active);
+        searchInputShell.classList.toggle('is-inventory-mode', active);
+        inventoryLocationText.textContent = active ? detail : '';
+        inventoryLocationBadge.hidden = !active;
+        if (!active) {
+            setInventoryIsbnMessage();
+        }
+    }
+
+    function closeUtilityMenu() {
+        utilityMenuPanel.hidden = true;
+        utilityMenuToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function openInventoryLocationModal() {
+        inventoryLocationInput.value = lockModeLocation || '';
+        inventoryLocationInput.setCustomValidity('');
+        closeUtilityMenu();
+        inventoryLocationModal.hidden = false;
+        inventoryLocationInput.focus();
+        inventoryLocationInput.select();
+    }
+
+    function closeInventoryLocationModal() {
+        inventoryLocationModal.hidden = true;
+        searchInput.focus();
+    }
+
+    function renderAccessMode() {
+        const icon = document.createElement('i');
+        const label = document.createElement('span');
+
+        if (window.location.href.includes('labook')) {
+            icon.className = 'fa-solid fa-gauge-high';
+            label.title = 'You are in LOCAL mode now';
+            label.append(icon, document.createTextNode(' LOCAL'));
+            spnSpd.replaceChildren(label);
+            return;
+        }
+
+        const link = document.createElement('a');
+        icon.className = 'fa-solid fa-globe';
+        link.href = 'http://labook.local';
+        link.title = 'Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)';
+        link.append(icon, document.createTextNode(' REMOTE'));
+        spnSpd.replaceChildren(link);
+    }
 
     const initialShelfFilter = (window.initialShelfFilter || '').trim();
     if (initialShelfFilter) {
         searchInput.value = initialShelfFilter;
     }
 
-    if (window.location.href.includes("labook")) {
-        spnSpd.innerHTML = `<spn title="You are in LOCAL mode now"><i class="fa-solid fa-gauge-high "></i></spn>`
-    } else {
-        spnSpd.innerHTML = `<a href="http://labook.local"><spn title="Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)"><i class="fa-solid fa-globe"></i></spn></a>`
-    }
+    renderAccessMode();
+
+    utilityMenuToggle.addEventListener('click', function () {
+        const willOpen = utilityMenuPanel.hidden;
+        utilityMenuPanel.hidden = !willOpen;
+        utilityMenuToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    utilityMenu.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeUtilityMenu();
+            utilityMenuToggle.focus();
+        }
+    });
+    document.addEventListener('click', function (e) {
+        if (!utilityMenuPanel.hidden && !utilityMenu.contains(e.target)) {
+            closeUtilityMenu();
+        }
+    });
 
     const headers = Array.from(document.querySelectorAll('#booksTable thead th[data-key]'))
         .map(th => ({
@@ -64,6 +270,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         th.addEventListener('click', () => {
             if (key === 'status') {
                 filterStatus = !filterStatus;
+                currentPage = 1;
             } else {
                 if (currentSortKey === key) {
                     currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
@@ -79,107 +286,46 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
+    searchInput.addEventListener('input', function () {
+        setInventoryIsbnMessage();
+    });
     searchInput.addEventListener('keydown', async function (e) {
-        searchValue = searchInput.value;
+        searchValue = searchInput.value.trim();
         if (e.key === 'Enter') {
-            if (lockModeLocation && isbnValidate(searchValue)) {
-                if (await isBookExist(searchValue)) {
-                    try {
-                        const respUpdateBook = await fetch(`/books/move/${searchValue}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ shelf_code: lockModeLocation })
-                        });
-                        if (!respUpdateBook.ok) {
-                            console.error('Error updating book:', respUpdateBook.statusText);
-                            return;
-                        }
-                        const updatedBook = await respUpdateBook.json();
-                        if (!updatedBook) {
-                            console.error('No book data returned after update');
-                            return;
-                        }
-                        console.log('Book updated successfully:', updatedBook);
-                        searchInput.value = '';
-                        musicRegister.play();
-                        updateBooksTable();
-                    } catch (err) {
-                        console.error('Error updating book:', err);
-                        return;
-                    }
-                } else {
-                    let book = {};
-                    try {
-                        const respFetchBook = await fetch(`/books/api/fetch_book_info/${searchValue}`);
-                        if (!respFetchBook.ok) {
-                            console.error('Error fetching book:', respFetchBook.statusText);
-                            musicAlert.play();
-                            searchInput.select();
-                            return;
-                        }
-                        const bookData = await respFetchBook.json();
-                        if (!bookData) return;
-                        if (!bookData.title) {
-                            console.error('Book data is incomplete:', book);
-                            musicAlert.play();
-                            searchInput.select();
-                            return;
-                        }
-                        book = {
-                            isbn: bookData.isbn,
-                            title: bookData.title,
-                            author: bookData.author,
-                            publisher: bookData.publisher,
-                            publication_date: bookData.publication_date,
-                            cover_image_path: bookData.cover_image_path,
-                        };
-                    } catch (err) {
-                        console.error('Error processing book data:', err);
-                        return;
-                    }
-                    try {
-                        const respAddBook = await fetch(`/books`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                ...book,
-                                shelf_code: lockModeLocation
-                            })
-                        });
-                        if (respAddBook.ok) {
-                            console.log('Book updated successfully:', book);
-                            searchInput.value = '';
-                            musicNewEntry.play();
-                            updateBooksTable();
-                        } else {
-                            console.error('Error adding book:', respAddBook.statusText);
-                        }
-                    } catch (err) {
-                        console.error('Error adding book:', err);
-                    }
+            if (lockModeLocation) {
+                e.preventDefault();
+                const normalizedIsbn = validateInventoryIsbnInput();
+                if (!normalizedIsbn) {
+                    return;
                 }
+                await processInventoryIsbn(normalizedIsbn);
             } else if (searchValue.startsWith(magicPrefix)) {
-                let locationCode = searchValue.split('/').pop();
+                const locationCode = searchValue.split('/').pop().trim();
+                if (!locationCode) {
+                    openInventoryLocationModal();
+                    return;
+                }
                 lockModeLocation = locationCode;
-                const lockLabel = document.createElement('span');
-                const lockIcon = document.createElement('i');
-                lockLabel.style.color = 'red';
-                lockIcon.className = 'fa-solid fa-location-pin-lock';
-                lockLabel.append(lockIcon, document.createTextNode(` ${locationCode}`));
-                spnLockMode.replaceChildren(lockLabel);
+                setLockModeStatus(true, lockModeLocation);
                 searchInput.value = '';
             } else {
-                spnLockMode.textContent = '\u2003';
+                if (!lockModeLocation) {
+                    setLockModeStatus();
+                }
                 updateBooksTable();
             }
         }
     });
 
-    document.getElementById('searchBtn').addEventListener('click', function () {
+    searchBtn.addEventListener('click', async function () {
+        if (lockModeLocation) {
+            const normalizedIsbn = validateInventoryIsbnInput();
+            if (!normalizedIsbn) {
+                return;
+            }
+            await processInventoryIsbn(normalizedIsbn);
+            return;
+        }
         currentPage = 1;
         updateBooksTable();
     });
@@ -190,32 +336,63 @@ document.addEventListener('DOMContentLoaded', async function () {
         currentSortOrder = 'desc';
         filterStatus = false;
         lockModeLocation = null;
+        setLockModeStatus();
         renderIndicators();
         updateBooksTable();
+        closeUtilityMenu();
     });
     document.getElementById('addBookBtn').addEventListener('click', function () {
         window.location.href = '/books/manage';
     });
     document.getElementById('spnLockMode').addEventListener('click', function () {
-        searchInput.value = magicPrefix;
-        lockModeLocation = null;
-        searchInput.focus();
+        openInventoryLocationModal();
+    });
+    inventoryLocationForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const location = inventoryLocationInput.value.trim();
+        if (!location) {
+            inventoryLocationInput.setCustomValidity('Locationを入力してください');
+            inventoryLocationInput.reportValidity();
+            return;
+        }
+
+        lockModeLocation = location;
+        setLockModeStatus(true, lockModeLocation);
+        setInventoryIsbnMessage();
+        searchInput.value = '';
+        closeInventoryLocationModal();
+    });
+    inventoryLocationInput.addEventListener('input', function () {
+        inventoryLocationInput.setCustomValidity('');
+    });
+    document.getElementById('inventoryLocationCancel').addEventListener('click', function () {
+        closeInventoryLocationModal();
+    });
+    inventoryLocationModal.addEventListener('click', function (e) {
+        if (e.target === inventoryLocationModal) {
+            closeInventoryLocationModal();
+        }
+    });
+    inventoryLocationModal.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeInventoryLocationModal();
+        }
     });
     document.getElementById('btnScanner').addEventListener('click', function () {
         window.location.href = '/books/manage?isbn=0';
     });
-    document.getElementById('prevPageBtn').addEventListener('click', function () {
+    document.querySelectorAll('[data-page-action="prev"]').forEach(button => button.addEventListener('click', function () {
         if (currentPage > 1) {
             currentPage--;
             updateBooksTable();
         }
-    });
-    document.getElementById('nextPageBtn').addEventListener('click', function () {
-        if (lastBooksCount === pageSize) {
+    }));
+    document.querySelectorAll('[data-page-action="next"]').forEach(button => button.addEventListener('click', function () {
+        if (currentPage * pageSize < totalBooksCount) {
             currentPage++;
             updateBooksTable();
         }
-    });
+    }));
 
     renderIndicators();
     updateBooksTable();  
@@ -238,6 +415,8 @@ async function loadAllShelves() {
 }
 
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
+    const booksTable = document.getElementById('booksTable');
+    const loadingIndicator = document.getElementById('bookListLoading');
     const tableBody = document.querySelector('#booksTable tbody');
     const keyword = document.getElementById('searchInput').value.trim();
     if (lastkey != keyword) {
@@ -246,60 +425,63 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     }
     const statusOnly = filterStatus;
     let books = [];
-    let totalBooksCount = 0;
 
     if (controller) controller.abort();
     controller = new AbortController();
     const requestId = ++currentRequestId;
+    const loadingStartedAt = performance.now();
+    loadingIndicator.hidden = false;
+    booksTable.setAttribute('aria-busy', 'true');
 
-    if (statusOnly) {
-        let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=99999`;
-        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
-        try {
-            const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-            if (requestId !== currentRequestId) return;
-            books = await resp.json();
-            books = books.filter(book => book.status !== null && book.status !== undefined && book.status !== "");
-            totalBooksCount = books.length;
-        } catch {
-            tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
-            return;
+    const offset = (currentPage - 1) * pageSize;
+    let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (statusOnly) url += '&status=borrowed';
+    try {
+        const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (requestId !== currentRequestId) return;
+        if (!resp.ok) throw new Error(`Book list failed with status ${resp.status}`);
+        const data = await resp.json();
+        if (requestId !== currentRequestId) return;
+        books = data.books || [];
+        totalBooksCount = data.total_count ?? books.length;
+    } catch (error) {
+        if (error.name === 'AbortError' || requestId !== currentRequestId) return;
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'Failed to load books';
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
+        return;
+    } finally {
+        if (requestId === currentRequestId) {
+            const minimumVisibleMs = 300;
+            const remainingMs = minimumVisibleMs - (performance.now() - loadingStartedAt);
+            if (remainingMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingMs));
+            }
         }
-    } else {
-        const offset = (currentPage - 1) * pageSize;
-        let url = `/books?sort=${sortKey}&order=${sortOrder}&limit=${pageSize}&offset=${offset}`;
-        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
-        try {
-            const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-            if (requestId !== currentRequestId) return;
-            const data = await resp.json();
-            books = data.books || [];
-            totalBooksCount = data.total_count || books.length;
-            lastBooksCount = books.length;
-        } catch {
-            tableBody.innerHTML = '<tr><td colspan="7">Failed to load books</td></tr>';
-            return;
+        if (requestId === currentRequestId) {
+            loadingIndicator.hidden = true;
+            booksTable.removeAttribute('aria-busy');
         }
     }
 
-    let pagedBooks = books;
-    if (statusOnly) {
-        const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
-        const startIdx = (currentPage - 1) * pageSize;
-        pagedBooks = books.slice(startIdx, startIdx + pageSize);
-        document.getElementById('pageInfo').textContent =
-            `Page ${currentPage} / ${totalPages} (${startIdx + 1}-${startIdx + pagedBooks.length} of ${totalBooksCount})`;
-        document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
-        document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
-    } else {
-        const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
-        const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-        const endEntry = (currentPage - 1) * pageSize + books.length;
-        document.getElementById('pageInfo').textContent =
-            `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
-        document.getElementById('prevPageBtn').style.display = (currentPage === 1) ? 'none' : '';
-        document.getElementById('nextPageBtn').style.display = (currentPage >= totalPages) ? 'none' : '';
-    }
+    if (requestId !== currentRequestId) return;
+    const pagedBooks = books;
+    const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+    const startEntry = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endEntry = (currentPage - 1) * pageSize + books.length;
+    document.querySelectorAll('[data-page-info]').forEach(info => {
+        info.textContent = `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
+    });
+    document.querySelectorAll('[data-page-action="prev"]').forEach(button => {
+        button.disabled = currentPage <= 1;
+    });
+    document.querySelectorAll('[data-page-action="next"]').forEach(button => {
+        button.disabled = currentPage >= totalPages;
+    });
 
     tableBody.replaceChildren();
     pagedBooks.forEach((book, idx) => {
@@ -325,7 +507,15 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         const title = document.createElement('a');
         title.className = 'book-title';
         title.textContent = book.title || '';
-        titleCell.appendChild(title);
+        const compactMeta = document.createElement('span');
+        compactMeta.className = 'book-compact-meta';
+        compactMeta.textContent = [book.publisher, book.publication_date]
+            .filter(Boolean)
+            .join(' · ');
+        const compactAuthor = document.createElement('span');
+        compactAuthor.className = 'book-compact-author';
+        compactAuthor.textContent = book.author || '';
+        titleCell.append(title, compactAuthor, compactMeta);
 
         const authorCell = document.createElement('td');
         authorCell.className = 'searchable-author';
@@ -396,8 +586,8 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
             }
         });
         tr.querySelector('.searchable-shelf')?.addEventListener('click', function () {
-            if (book.shelf_id) {
-                document.getElementById('searchInput').value = "shelf_id:" + String(book.shelf_id);
+            if (book.shelf_id && shelfCache[book.shelf_id]) {
+                document.getElementById('searchInput').value = shelfCache[book.shelf_id];
                 updateBooksTable();
             }
         });
@@ -409,7 +599,12 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         tableBody.appendChild(tr);
     });
     if (pagedBooks.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7">No books found</td></tr>';
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'No books found';
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
     }
 }
 

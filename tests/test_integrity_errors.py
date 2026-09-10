@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from app import app
 from db import connect_database
+from user_entities import migrate_user_entities
 
 
 SCHEMA = """
@@ -65,6 +66,7 @@ class IntegrityErrorRouteTest(unittest.TestCase):
                ) VALUES (1, '100', 1, CURRENT_TIMESTAMP)"""
         )
         connection.commit()
+        migrate_user_entities(connection)
         connection.close()
 
         self.database_patch = patch("db.DATABASE", str(self.database))
