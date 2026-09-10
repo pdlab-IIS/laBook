@@ -11,9 +11,20 @@ let controller;
 let currentRequestId = 0;
 
 let currentPage = 1;
-const pageSize = 25;
+const pageSizeOptions = [10, 25, 50, 100];
+let pageSize = readPageSize();
 let totalBooksCount = 0;
 let lastkey = "";
+
+function readPageSize() {
+    const match = document.cookie.match(/(?:^|;\s*)bookPageSize=(\d+)(?:;|$)/);
+    const savedPageSize = Number(match?.[1]);
+    return pageSizeOptions.includes(savedPageSize) ? savedPageSize : 25;
+}
+
+function savePageSize() {
+    document.cookie = `bookPageSize=${pageSize}; path=/; max-age=31536000; SameSite=Lax`;
+}
 
 document.addEventListener('DOMContentLoaded', async function () {
     await loadAllShelves();
@@ -22,6 +33,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     const spnLockMode = document.getElementById('spnLockMode');
     const lockModeStatus = document.getElementById('lockModeStatus');
     const spnSpd = document.getElementById('spnSpd');
+    const pageSizeBtn = document.getElementById('pageSizeBtn');
+    const pageSizeStatus = document.getElementById('pageSizeStatus');
     const utilityMenu = document.getElementById('utilityMenu');
     const utilityMenuToggle = utilityMenu.querySelector('.utility-menu__toggle');
     const utilityMenuPanel = document.getElementById('utilityMenuPanel');
@@ -197,23 +210,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     function renderAccessMode() {
-        const icon = document.createElement('i');
-        const label = document.createElement('span');
+        const status = spnSpd.querySelector('.utility-menu__status');
 
         if (window.location.href.includes('labook')) {
-            icon.className = 'fa-solid fa-gauge-high';
-            label.title = 'You are in LOCAL mode now';
-            label.append(icon, document.createTextNode(' LOCAL'));
-            spnSpd.replaceChildren(label);
+            status.textContent = 'LOCAL';
+            spnSpd.title = 'You are in LOCAL mode now';
+            spnSpd.disabled = true;
             return;
         }
 
-        const link = document.createElement('a');
-        icon.className = 'fa-solid fa-globe';
-        link.href = 'http://labook.local';
-        link.title = 'Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)';
-        link.append(icon, document.createTextNode(' REMOTE'));
-        spnSpd.replaceChildren(link);
+        status.textContent = 'REMOTE';
+        spnSpd.title = 'Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)';
+        spnSpd.disabled = false;
     }
 
     const initialShelfFilter = (window.initialShelfFilter || '').trim();
@@ -222,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     renderAccessMode();
+    pageSizeStatus.textContent = String(pageSize);
 
     utilityMenuToggle.addEventListener('click', function () {
         const willOpen = utilityMenuPanel.hidden;
@@ -343,6 +352,22 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
     document.getElementById('addBookBtn').addEventListener('click', function () {
         window.location.href = '/books/manage';
+    });
+    document.getElementById('manageUsersBtn').addEventListener('click', function () {
+        window.location.href = this.dataset.url;
+    });
+    pageSizeBtn.addEventListener('click', function () {
+        const currentIndex = pageSizeOptions.indexOf(pageSize);
+        pageSize = pageSizeOptions[(currentIndex + 1) % pageSizeOptions.length];
+        pageSizeStatus.textContent = String(pageSize);
+        savePageSize();
+        currentPage = 1;
+        updateBooksTable();
+    });
+    spnSpd.addEventListener('click', function () {
+        if (!spnSpd.disabled) {
+            window.location.href = 'http://labook.local';
+        }
     });
     document.getElementById('spnLockMode').addEventListener('click', function () {
         openInventoryLocationModal();

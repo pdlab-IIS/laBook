@@ -47,13 +47,14 @@
                     <i class="fa-solid fa-bars" aria-hidden="true"></i>
                 </button>
                 <div id="utilityMenuPanel" class="utility-menu__panel" hidden>
-                    <a class="utility-menu__item" href="{{ url_for('users.manage_users_page') }}">
+                        <button type="button" id="manageUsersBtn" class="utility-menu__item grey"
+                            data-url="{{ url_for('users.manage_users_page') }}">
                         <i class="fas fa-users" aria-hidden="true"></i>
-                        <span>人物・組織 / 貸出状況</span>
-                    </a>
+                        <span>Users & Owners</span>
+                    </button>
                     <button type="button" id="resetBtn" class="utility-menu__item grey">
                         <i class="fas fa-undo" aria-hidden="true"></i>
-                        <span>Reset</span>
+                        <span>Refresh Book List</span>
                     </button>
                     <button type="button" id="spnLockMode" class="utility-menu__item grey"
                             title="棚卸し用の連続登録モード">
@@ -61,11 +62,17 @@
                         <span>棚卸し / Continuous:</span>
                         <span id="lockModeStatus" class="utility-menu__status" aria-live="polite">OFF</span>
                     </button>
-                    <div class="utility-menu__item utility-menu__access">
+                    <button type="button" id="pageSizeBtn" class="utility-menu__item grey"
+                            aria-label="1ページあたりの表示件数を変更">
+                        <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
+                        <span>Displayed items:</span>
+                        <span id="pageSizeStatus" class="utility-menu__status" aria-live="polite">25</span>
+                    </button>
+                    <button type="button" id="spnSpd" class="utility-menu__item utility-menu__access">
                         <i class="fa-solid fa-network-wired" aria-hidden="true"></i>
                         <span>Access mode:</span>
-                        <span id="spnSpd" class="utility-menu__status" aria-live="polite"></span>
-                    </div>
+                        <span class="utility-menu__status" aria-live="polite"></span>
+                    </button>
                 </div>
             </div>
         </div>

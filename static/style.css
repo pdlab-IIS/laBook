@@ -1242,31 +1242,6 @@ body.app-page {
     padding: 0;
 }
 
-@container app-page (max-width: 760px) {
-    .people-page .loans-table thead {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-    }
-
-    .people-page .loans-table :is(tbody, tr, td) {
-        display: block;
-        width: 100%;
-    }
-
-    .people-page .loans-table tr {
-        margin-bottom: 16px;
-    }
-
-    .people-page .loans-table td::before {
-        content: attr(data-label);
-        display: block;
-        font-weight: bold;
-    }
-}
-
 .manage-page hr {
     margin: 24px 0;
     border: 0;

@@ -65,6 +65,11 @@ class PageLayoutTests(unittest.TestCase):
             rules = self.declarations('.manage-page input[type="date"]' + pseudo)
             self.assertEqual(rules["min-width"].strip(), "0")
 
+    def test_loan_table_uses_the_standard_compact_table_layout(self):
+        rules = self.declarations(".people-page .loans-table")
+        self.assertEqual(rules["width"].strip(), "100%")
+        self.assertEqual(rules["table-layout"].strip(), "fixed")
+
 
 if __name__ == "__main__":
     unittest.main()

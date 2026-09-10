@@ -89,7 +89,9 @@ class EntityRoutesTests(unittest.TestCase):
         self.assertIn('&lt;Lab&gt;', settings.get_data(as_text=True))
         self.assertNotIn('<Lab>', settings.get_data(as_text=True))
         self.assertNotIn('id="ownerSettingsForm"', self.client.get('/').get_data(as_text=True))
-        self.assertIn('href="/users/manage"', self.client.get('/').get_data(as_text=True))
+        home = self.client.get('/').get_data(as_text=True)
+        self.assertIn('id="manageUsersBtn"', home)
+        self.assertIn('data-url="/users/manage"', home)
 
     def test_users_page_empty_states(self):
         html = self.client.get('/users/manage').get_data(as_text=True)
@@ -128,9 +130,8 @@ class EntityRoutesTests(unittest.TestCase):
         self.assertEqual(first.count('data-label="本"'), 25)
         second = self.client.get('/users/manage?view=all&page=2').get_data(as_text=True)
         self.assertEqual(second.count('data-label="本"'), 2)
-        self.assertIn('返却済み', second)
-        self.assertIn('返却者: &lt;Borrower&gt;', second)
-        self.assertIn('2026-09-07', second)
+        self.assertNotIn('data-label="返却期限"', second)
+        self.assertNotIn('data-label="状態"', second)
         self.assertIn('href="/books/manage?isbn=100"', second)
         clamped = self.client.get('/users/manage?view=all&page=999').get_data(as_text=True)
         self.assertIn('27件 / 2 / 2ページ', clamped)
