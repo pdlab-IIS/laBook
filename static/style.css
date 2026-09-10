@@ -947,9 +947,9 @@ select {
 }
 
 html[data-development-preview-mode="pc"] body {
-    width: 1180px;
-    min-width: 1180px;
-    max-width: none;
+    width: 1000px;
+    min-width: 1000px;
+    max-width: 1000px;
     margin: 20px auto;
     padding: 0;
     font-size: 1rem;
@@ -977,7 +977,9 @@ html[data-development-preview-mode="pc"] body {
 
 /* Shared list/manage page layout. Preview modes only provide a frame. */
 body.app-page {
-    margin: 0;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
     padding: clamp(20px, 3vw, 40px);
     font-size: 1rem;
 }
@@ -1124,12 +1126,35 @@ body.app-page {
 }
 
 .manage-page :is(input, textarea, select) {
+    display: block;
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    inline-size: 100%;
+    min-inline-size: 0;
+    max-inline-size: 100%;
     margin: 0;
     padding: 10px;
     font: 400 1rem/1.4 Arial, sans-serif;
+}
+
+/* Native date controls (especially WebKit) must not impose an intrinsic
+   width larger than their table cell. Keep the native date input/picker. */
+.manage-page input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: calc(1.4rem + 22px);
+}
+
+.manage-page input[type="date"]::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+}
+
+.manage-page input[type="date"]::-webkit-datetime-edit {
+    min-width: 0;
+    padding: 0;
 }
 
 .manage-page textarea {
