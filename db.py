@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS Users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT,
-    affiliation TEXT
+    affiliation TEXT,
+    entity_type TEXT NOT NULL DEFAULT 'person' CHECK(entity_type IN ('person', 'organization')),
+    can_own_books INTEGER NOT NULL DEFAULT 0 CHECK(can_own_books IN (0, 1))
 );
 CREATE TABLE IF NOT EXISTS Shelves (
     shelf_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,6 +83,9 @@ def close_connection(exception):
 
 def apply_schema(connection):
     connection.executescript(SCHEMA_SQL)
+    from user_entities import migrate_user_entities
+    connection.commit()
+    migrate_user_entities(connection)
     connection.commit()
 
 

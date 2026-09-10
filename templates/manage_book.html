@@ -76,9 +76,14 @@
                 <td><input type="text" name="cover_image_path" id="cover_image_path"
                         value="{{ book['cover_image_path'] if book else '' }}"></td>
             </tr>
-            <tr style="display: none;">
-                <td><label for="owner_id">Owner ID:</label></td>
-                <td><input type="number" name="owner_id" id="owner_id" value="{{ book['owner_id'] if book and book['owner_id'] else '' }}">
+            <tr>
+                <td><label for="owner_id"><i class="fa-solid fa-book-bookmark"></i>Owner:</label></td>
+                <td><select name="owner_id" id="owner_id">
+                    <option value="">未設定</option>
+                    {% for owner in owners %}
+                    <option value="{{ owner.user_id }}"{% if book and book['owner_id'] == owner.user_id %} selected{% endif %}>{{ owner.name }} (ID: {{ owner.user_id }})</option>
+                    {% endfor %}
+                </select>
                 </td>
             </tr>
             <tr>

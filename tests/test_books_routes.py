@@ -14,7 +14,9 @@ class BookRouteTests(unittest.TestCase):
             """
             CREATE TABLE Users (
                 user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL
+                name TEXT NOT NULL,
+                entity_type TEXT NOT NULL DEFAULT 'person',
+                can_own_books INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE Shelves (
                 shelf_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,6 +68,59 @@ class BookRouteTests(unittest.TestCase):
             ("9780000000001",),
         ).fetchone()[0]
         self.assertIsNone(owner_id)
+
+    def test_owner_can_be_set_changed_preserved_and_cleared(self):
+        self.db.executemany("INSERT INTO Users (user_id, name, can_own_books) VALUES (?, ?, 1)", [(1, "A"), (2, "B")])
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            response = self.client.post("/books", json={"isbn": 101, "title": "Book", "owner_id": "1"})
+            self.assertEqual(response.status_code, 201)
+            for payload, expected in [
+                ({"title": "Book", "owner_id": "2"}, 2),
+                ({"title": "Renamed"}, 2),
+                ({"title": "Book", "owner_id": ""}, None),
+            ]:
+                with self.subTest(payload=payload):
+                    self.assertEqual(self.client.put("/books/101", json=payload).status_code, 200)
+                    self.assertEqual(self.db.execute("SELECT owner_id FROM Books WHERE isbn=101").fetchone()[0], expected)
+
+    def test_invalid_owner_is_rejected_without_changing_book(self):
+        self.db.execute("INSERT INTO Users (user_id, name, can_own_books) VALUES (1, 'Owner', 1)")
+        self.db.execute("INSERT INTO Books (isbn, title, owner_id) VALUES (101, 'Book', 1)")
+        self.db.commit()
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            for owner in (404, -1, "invalid", 1.5, True, False, str(2**63), "9" * 100):
+                with self.subTest(owner=owner):
+                    response = self.client.put("/books/101", json={"title": "Changed", "owner_id": owner})
+                    self.assertEqual(response.status_code, 409)
+                    self.assertIn("description", response.get_json())
+                    self.assertEqual(self.db.execute("SELECT title, owner_id FROM Books WHERE isbn=101").fetchone(), ("Book", 1))
+
+    def test_owner_selector_is_only_rendered_on_manage_pages(self):
+        from app import app
+
+        self.db.execute("INSERT INTO Users (user_id, name, can_own_books) VALUES (1, '<Owner>', 1)")
+        self.db.execute("INSERT INTO Books (isbn, title, owner_id) VALUES (101, 'Book', 1)")
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            client = app.test_client()
+            for path in ("/books/manage", "/books/manage?isbn=101"):
+                response = client.get(path)
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assertIn('<select name="owner_id" id="owner_id">', html)
+                self.assertIn('<option value="">未設定</option>', html)
+                self.assertIn('&lt;Owner&gt; (ID: 1)', html)
+                self.assertNotIn('<Owner>', html)
+                if "isbn=" in path:
+                    self.assertIn('<option value="1" selected>', html)
+            self.assertNotIn('id="owner_id"', client.get('/').get_data(as_text=True))
+
+    def test_manage_owner_selector_allows_no_registered_users(self):
+        from app import app
+
+        with mock.patch("routes.books.get_db", return_value=self.db):
+            response = app.test_client().get("/books/manage")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('<option value="">未設定</option>', response.get_data(as_text=True))
 
     def test_inventory_add_returns_created_shelf_for_immediate_rendering(self):
         with mock.patch("routes.books.get_db", return_value=self.db):
@@ -156,7 +211,7 @@ class BookRouteTests(unittest.TestCase):
 
     def test_location_search_composes_with_status_and_keeps_text_search(self):
         self.db.execute("INSERT INTO Shelves VALUES (1, 'A1', '')")
-        self.db.execute("INSERT INTO Users VALUES (1, 'Reader')")
+        self.db.execute("INSERT INTO Users (user_id, name) VALUES (1, 'Reader')")
         self.db.executemany(
             "INSERT INTO Books (isbn, title, shelf_id) VALUES (?, ?, ?)",
             [(1000, 'First', 1), (1001, 'Second', 1), (2000, 'Ordinary text', None)],

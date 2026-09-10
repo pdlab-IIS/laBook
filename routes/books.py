@@ -7,6 +7,7 @@ from flask import (
     redirect,
     url_for,
     Response,
+    make_response,
 )
 from db import get_db
 import fetch_book_info
@@ -69,6 +70,27 @@ def normalize_owner_id(owner_id):
     """Convert the historical zero sentinel to a nullable foreign key."""
     if owner_id in (None, "", 0, "0"):
         return None
+    return owner_id
+
+
+def validate_owner_id(owner_id):
+    def reject_owner():
+        abort(make_response(jsonify(description="Owner must be an existing user"), 409))
+
+    if isinstance(owner_id, bool):
+        reject_owner()
+    owner_id = normalize_owner_id(owner_id)
+    if owner_id is None:
+        return None
+    if not str(owner_id).isascii() or not str(owner_id).isdigit():
+        reject_owner()
+    if len(str(owner_id)) > 19:
+        reject_owner()
+    owner_id = int(owner_id)
+    if not 0 < owner_id <= 2**63 - 1:
+        reject_owner()
+    if get_db().execute("SELECT 1 FROM Users WHERE user_id = ? AND can_own_books=1", (owner_id,)).fetchone() is None:
+        reject_owner()
     return owner_id
 
 
@@ -178,7 +200,7 @@ def add_book():
     if not all(k in data for k in required):
         abort(400, description="Missing required fields")
     db = get_db()
-    owner_id = normalize_owner_id(data.get("owner_id"))
+    owner_id = validate_owner_id(data.get("owner_id"))
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
@@ -221,9 +243,11 @@ def update_book(isbn):
     data = request.get_json()
     db = get_db()
     cursor = db.execute("SELECT * FROM Books WHERE isbn = ?", (isbn,))
-    if cursor.fetchone() is None:
+    row = cursor.fetchone()
+    if row is None:
         abort(404, description="Book not found")
-    owner_id = normalize_owner_id(data.get("owner_id"))
+    existing = dict(zip([column[0] for column in cursor.description], row))
+    owner_id = validate_owner_id(data.get("owner_id", existing["owner_id"]))
     shelf_id = data.get("shelf_id")
     if not shelf_id and data.get("shelf_code"):
         shelf_id = get_or_create_shelf_id(
@@ -362,6 +386,10 @@ def manage_book_page():
 
     return render_template(
         "manage_book.html",
+        owners=[
+            {"user_id": row[0], "name": row[1]}
+            for row in get_db().execute("SELECT user_id, name FROM Users WHERE can_own_books=1 ORDER BY name, user_id")
+        ],
         book=book,
         error=error,
         mode=mode,

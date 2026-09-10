@@ -88,7 +88,7 @@ def run_smoke(base_url):
         user = client.request(
             "POST",
             "/users",
-            payload={"user_name": "phase6-smoke-user"},
+            payload={"user_name": "phase6-smoke-user", "can_own_books": True},
             expected=(201,),
         )
         user_id = user["user_id"]
