@@ -7,6 +7,7 @@
     <script>window.initialShelfFilter = {{ (initial_filter or "")|tojson }};</script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='index.js') }}"></script>
+    <script src="{{ url_for('static', filename='bulk_edit.js') }}" defer></script>
     <script src="{{ url_for('static', filename='general.js') }}"></script>
     <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
     <link rel="icon" href="{{ url_for('static', filename='bdb-favicon.svg') }}" type="image/svg+xml" />
@@ -47,6 +48,9 @@
                     <i class="fa-solid fa-bars" aria-hidden="true"></i>
                 </button>
                 <div id="utilityMenuPanel" class="utility-menu__panel" hidden>
+                    <button type="button" id="bulkEditBtn" class="utility-menu__item grey" aria-pressed="false">
+                        <i class="fas fa-edit" aria-hidden="true"></i><span>一括変更 (<span id="bulkSelectedCount">0</span>)</span>
+                    </button>
                         <button type="button" id="manageUsersBtn" class="utility-menu__item grey"
                             data-url="{{ url_for('users.manage_users_page') }}">
                         <i class="fas fa-users" aria-hidden="true"></i>
@@ -122,6 +126,7 @@
     <table id="booksTable" class="book-list-table" aria-describedby="bookListLoading">
         <thead>
             <tr>
+                <th class="book-selection" hidden><input type="checkbox" id="selectPageBooks" aria-label="表示中のページを全選択" disabled></th>
                 <th>Cover</th>
                 <th data-key="title">
                     Title
@@ -153,6 +158,22 @@
     {% with pagination_id="pagination", pagination_label="書籍一覧の下のページ切り替え" %}
         {% include "_pagination.html" %}
     {% endwith %}
+    <dialog id="bulkEditDialog" class="bulk-edit-dialog" aria-labelledby="bulkEditTitle">
+        <form id="bulkEditForm">
+            <h2 id="bulkEditTitle">選択した本を一括変更</h2>
+            <p id="bulkEditSummary"></p>
+            <p>全選択は表示中のページが対象です。ページ移動・検索・一覧更新で選択は解除されます。</p>
+            <label for="bulkLocationMode">Location</label>
+            <select id="bulkLocationMode"><option value="keep">変更しない</option><option value="set">指定する（未登録なら作成）</option><option value="clear">未設定にする</option></select>
+            <input id="bulkLocation" type="text" aria-label="変更先のLocation" placeholder="Location" disabled>
+            <label for="bulkOwnerMode">Owner</label>
+            <select id="bulkOwnerMode"><option value="keep">変更しない</option><option value="set">指定する</option><option value="clear">未設定にする</option></select>
+            <select id="bulkOwner" aria-label="変更先のOwner" disabled><option value="">Ownerを選択</option></select>
+            <p id="bulkEditMessage" role="status" aria-live="polite"></p>
+            <div class="bulk-edit-actions"><button type="button" id="bulkEditCancel" class="grey">一括編集を終了</button><button type="submit" id="bulkEditSave">変更を適用</button></div>
+        </form>
+    </dialog>
+    <p id="bulkEditResult" role="status" aria-live="polite"></p>
 </body>
 
 </html>

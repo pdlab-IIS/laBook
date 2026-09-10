@@ -440,6 +440,7 @@ async function loadAllShelves() {
 }
 
 async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSortOrder) {
+    window.bulkEdit?.reset();
     const booksTable = document.getElementById('booksTable');
     const loadingIndicator = document.getElementById('bookListLoading');
     const tableBody = document.querySelector('#booksTable tbody');
@@ -474,7 +475,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         if (error.name === 'AbortError' || requestId !== currentRequestId) return;
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 7;
+        cell.colSpan = 8;
         cell.textContent = 'Failed to load books';
         row.appendChild(cell);
         tableBody.replaceChildren(row);
@@ -511,6 +512,14 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     tableBody.replaceChildren();
     pagedBooks.forEach((book, idx) => {
         const tr = document.createElement('tr');
+        const selectionCell = document.createElement('td');
+        selectionCell.className = 'book-selection';
+        selectionCell.hidden = !window.bulkEdit?.active;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.bookIsbn = String(book.isbn);
+        checkbox.setAttribute('aria-label', `${book.title || book.isbn} を選択`);
+        selectionCell.appendChild(checkbox);
         const shelfCellId = `shelf-cell-${requestId}-${idx}`;
         const coverSrc = book.cover_image_path
           ? (book.cover_image_path.startsWith('/') ? book.cover_image_path : `/${book.cover_image_path}`)
@@ -580,6 +589,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         }
 
         tr.append(
+            selectionCell,
             coverCell,
             titleCell,
             authorCell,
@@ -626,11 +636,12 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     if (pagedBooks.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 7;
+        cell.colSpan = 8;
         cell.textContent = 'No books found';
         row.appendChild(cell);
         tableBody.replaceChildren(row);
     }
+    window.bulkEdit?.sync();
 }
 
 window.addEventListener('beforeunload', () => {
