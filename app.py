@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 
 import sqlite3
+import os
+from urllib.parse import urlsplit
 from logger_config import setup_logger
 from outbound_policy import install_requests_allowlist
 
@@ -29,7 +31,15 @@ app.register_blueprint(notion_bp)
 @app.context_processor
 def inject_runtime_environment():
     """Expose non-secret runtime flags to every rendered page."""
-    return {"is_development": app.debug}
+    local_url = os.environ.get('LABOOK_LOCAL_URL', '')
+    try:
+        parsed = urlsplit(local_url)
+        if (parsed.scheme not in ['http', 'https'] or not parsed.netloc
+                or parsed.username or parsed.password or any(ord(c) <= 32 for c in local_url)):
+            local_url = ''
+    except ValueError:
+        local_url = ''
+    return {"is_development": app.debug, "runtime_local_url": local_url}
 
 
 @app.route("/healthz")

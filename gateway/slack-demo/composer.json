@@ -1,0 +1,7 @@
+{
+  "name": "labook/slack-signin-demo",
+  "description": "Isolated Sign in with Slack proof of concept",
+  "type": "project",
+  "require": { "php": "^8.2", "ext-curl": "*", "ext-openssl": "*", "ext-pdo_sqlite": "*", "firebase/php-jwt": "7.1.1" },
+  "config": { "allow-plugins": false, "sort-packages": true }
+}

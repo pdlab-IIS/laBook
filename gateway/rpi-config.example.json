@@ -1,0 +1,9 @@
+{
+  "public_origin": "",
+  "public_prefix": "/labook",
+  "upstream_hosts": [],
+  "slack_team_id": "",
+  "signing_keys": {},
+  "nonce_database": "",
+  "max_body_bytes": 8388608
+}

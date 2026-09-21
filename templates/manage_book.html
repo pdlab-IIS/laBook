@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    {% include "_client_runtime.html" %}
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="{{ url_for('static', filename='edit-favicon.svg') }}" type="image/svg+xml" />
     <title>laBook[alpha-version] | {% if mode == "edit" %}Edit / Borrow{% else %}Add{% endif %}</title>
@@ -15,8 +16,9 @@
 </head>
 
 <body class="app-page manage-page">
+    {% include "_session_bar.html" %}
     {% include "_development_overlay.html" %}
-    <h2 class="manage-header"><button id='backPage' onclick='window.location.href="/"' aria-label="書籍一覧に戻る">
+    <h2 class="manage-header"><button id='backPage' onclick='window.location.href=LaBook.url("/")' aria-label="書籍一覧に戻る">
         <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
         </button>
         {% if mode == "edit" %}<i class="fas fa-book"></i> Edit / Borrow{% else %}<i class="fas fa-book-medical"></i>
@@ -25,7 +27,7 @@
     <div class="cover-editor">
         {% if mode == "edit" %}
         <img id="cover_preview"
-            src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
+            src="{{ request.script_root + '/' + book['cover_image_path'].lstrip('/') if book and book['cover_image_path'] else url_for('static', filename='book-solid.svg') }}"
             alt="No Image">
         <form id="coverUploadForm" enctype="multipart/form-data">
             <input type="file" id="coverFileInput" name="cover" accept=".jpg,.jpeg,image/jpeg">
@@ -35,7 +37,7 @@
         </form>
         {% else %}
         <img id="cover_preview"
-            src="{{ '/'+book['cover_image_path'] if book and book['cover_image_path'] else url_for('static', filename='book-medical-solid.svg') }}"
+            src="{{ request.script_root + '/' + book['cover_image_path'].lstrip('/') if book and book['cover_image_path'] else url_for('static', filename='book-medical-solid.svg') }}"
             alt="No Image">
         <button type="button" id="btnScanner" onclick="mobileScan()"><i class="fas fa-barcode" aria-hidden="true"></i>
             Scanner</button>

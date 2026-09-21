@@ -2,10 +2,9 @@ let currentSortKey = 'updatedtime';
 let currentSortOrder = 'desc';
 let filterStatus = false;
 let lockModeLocation = null;
-const musicRegister = new Audio('static/register.mp3');
-const musicNewEntry = new Audio('static/newentry.mp3');
-const musicAlert = new Audio('static/alert.mp3');
-const magicPrefix = 'https://pdlab.iis.u-tokyo.ac.jp/L/';
+const musicRegister = new Audio(LaBook.url('/static/register.mp3'));
+const musicNewEntry = new Audio(LaBook.url('/static/newentry.mp3'));
+const musicAlert = new Audio(LaBook.url('/static/alert.mp3'));
 
 let controller;
 let currentRequestId = 0;
@@ -23,7 +22,7 @@ function readPageSize() {
 }
 
 function savePageSize() {
-    document.cookie = `bookPageSize=${pageSize}; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `bookPageSize=${pageSize}; path=${LaBook.url('/')}; max-age=31536000; SameSite=Lax`;
 }
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -98,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         try {
             if (await isBookExist(isbn)) {
-                const response = await fetch(`/books/move/${isbn}`, {
+                const response = await LaBook.fetch(`/books/move/${isbn}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -121,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 return;
             }
 
-            const metadataResponse = await fetch(`/books/api/fetch_book_info/${isbn}`);
+            const metadataResponse = await LaBook.fetch(`/books/api/fetch_book_info/${isbn}`);
             if (!metadataResponse.ok) {
                 throw new Error(`Book metadata lookup failed with status ${metadataResponse.status}`);
             }
@@ -136,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 return;
             }
 
-            const addResponse = await fetch('/books', {
+            const addResponse = await LaBook.fetch('/books', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -308,8 +307,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                     return;
                 }
                 await processInventoryIsbn(normalizedIsbn);
-            } else if (searchValue.startsWith(magicPrefix)) {
-                const locationCode = searchValue.split('/').pop().trim();
+            } else if (LaBook.shelfCode(searchValue) !== null) {
+                const locationCode = LaBook.shelfCode(searchValue);
                 if (!locationCode) {
                     openInventoryLocationModal();
                     return;
@@ -351,7 +350,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         closeUtilityMenu();
     });
     document.getElementById('addBookBtn').addEventListener('click', function () {
-        window.location.href = '/books/manage';
+        window.location.href = LaBook.url('/books/manage');
     });
     document.getElementById('manageUsersBtn').addEventListener('click', function () {
         window.location.href = this.dataset.url;
@@ -365,10 +364,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         updateBooksTable();
     });
     spnSpd.addEventListener('click', function () {
-        if (!spnSpd.disabled) {
-            window.location.href = 'http://labook.local';
+        if (!spnSpd.disabled && LaBook.localUrl) {
+            window.location.href = LaBook.localUrl;
         }
     });
+    if (!LaBook.localUrl) spnSpd.disabled = true;
     document.getElementById('spnLockMode').addEventListener('click', function () {
         openInventoryLocationModal();
     });
@@ -404,7 +404,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
     document.getElementById('btnScanner').addEventListener('click', function () {
-        window.location.href = '/books/manage?isbn=0';
+        window.location.href = LaBook.url('/books/manage?isbn=0');
     });
     document.querySelectorAll('[data-page-action="prev"]').forEach(button => button.addEventListener('click', function () {
         if (currentPage > 1) {
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 let shelfCache = {}; 
 async function loadAllShelves() {
     try {
-        const resp = await fetch('/shelves');
+        const resp = await LaBook.fetch('/shelves');
         if (!resp.ok) return;
         const shelves = await resp.json();
         shelves.forEach(shelf => {
@@ -464,7 +464,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
     if (statusOnly) url += '&status=borrowed';
     try {
-        const resp = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        const resp = await LaBook.fetch(url, { signal: controller.signal, cache: 'no-store' });
         if (requestId !== currentRequestId) return;
         if (!resp.ok) throw new Error(`Book list failed with status ${resp.status}`);
         const data = await resp.json();
@@ -529,7 +529,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         coverCell.className = 'clickable-cover book-cover-column';
         coverCell.style.cursor = 'pointer';
         const coverImage = document.createElement('img');
-        coverImage.src = coverSrc;
+        coverImage.src = LaBook.url(coverSrc);
         coverImage.alt = 'Cover Image';
         coverImage.style.maxWidth = '60px';
         coverImage.style.maxHeight = '100px';
@@ -600,12 +600,12 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         );
         tr.querySelector('.clickable-cover')?.addEventListener('click', function () {
             if (book.isbn) {
-                window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
+                window.location.href = LaBook.url(`/books/manage?isbn=${encodeURIComponent(book.isbn)}`);
             }
         });
         tr.querySelector('.clickable-title')?.addEventListener('click', function () {
             if (book.isbn) {
-                window.location.href = `/books/manage?isbn=${encodeURIComponent(book.isbn)}`;
+                window.location.href = LaBook.url(`/books/manage?isbn=${encodeURIComponent(book.isbn)}`);
             }
         });
         tr.querySelector('.searchable-author')?.addEventListener('click', function () {

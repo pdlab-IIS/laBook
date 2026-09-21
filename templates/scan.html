@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    {% include "_client_runtime.html" %}
     <title>laBook[alpha-version] | Scan</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -15,9 +16,10 @@
 </head>
 
 <body>
+    {% include "_session_bar.html" %}
     {% include "_development_overlay.html" %}
      <body>
-        <button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
+        <button id='backPage' onclick='window.location.href=LaBook.url("/")' style="width: fit-content;">
         <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
                 </button>
                 <h2><i class="fa-solid fa-location-dot"></i> {{ location_code }}</h2>

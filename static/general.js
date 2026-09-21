@@ -33,7 +33,7 @@ function isbnValidate(isbn) {
 }
 
 async function isBookExist(isbn) {
-    return fetch(`/books/${isbn}`)
+    return LaBook.fetch(`/books/${isbn}`)
         .then(resp => {
             if (resp.status === 404) return false;
             if (resp.ok) return true;
@@ -43,7 +43,7 @@ async function isBookExist(isbn) {
 
 function isUserExist(username) {
     if (!username) return false;
-    return fetch(`/users/${username}`)
+    return LaBook.fetch(`/users/${username}`)
         .then(resp => {
             if (resp.status === 404) return false;
             if (resp.ok) return true;

@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    {% include "_client_runtime.html" %}
     <title>laBook[alpha-version]</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script>window.initialShelfFilter = {{ (initial_filter or "")|tojson }};</script>
@@ -17,9 +18,9 @@
     <meta property="og:title"        content="laBook">
     <meta property="og:description"  content="laBook is a book management system for libraries and personal collections.">
     <meta property="og:type"         content="website">
-    <meta property="og:url"          content="https://pdlab.iis.u-tokyo.ac.jp/labook">
-    <meta property="og:image"        content="https://pdlab.iis.u-tokyo.ac.jp/labook/static/ogp.jpg">
-    <meta property="og:image:secure_url" content="https://pdlab.iis.u-tokyo.ac.jp/labook/static/ogp.jpg">
+    <meta property="og:url"          content="{{ url_for('hello_world', _external=True) }}">
+    <meta property="og:image"        content="{{ url_for('static', filename='ogp.jpg', _external=True) }}">
+    <meta property="og:image:secure_url" content="{{ url_for('static', filename='ogp.jpg', _external=True) }}">
     <meta property="og:image:type"   content="image/jpeg">
     <meta property="og:image:width"  content="1200">
     <meta property="og:image:height" content="630">
@@ -27,6 +28,7 @@
 </head>
 
 <body class="app-page book-list-page">
+    {% include "_session_bar.html" %}
     {% include "_development_overlay.html" %}
     <p>バージョンアップしました！棚卸(連続登録)機能は「≡」の中にあります→</p>
     <header class="app-header">
