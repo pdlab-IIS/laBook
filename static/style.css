@@ -217,6 +217,7 @@ h2:hover {
     text-align: left;
 }
 
+.utility-menu__page-size,
 .utility-menu__access {
     background-color: var(--color-bg-l1);
     color: var(--color-body);
@@ -226,6 +227,21 @@ h2:hover {
     justify-self: end;
     font-size: 0.8em;
     white-space: nowrap;
+}
+
+#pageSizeSelect {
+    appearance: auto;
+    -webkit-appearance: menulist;
+    width: auto;
+    min-width: 64px;
+    margin: 0;
+    padding: 6px;
+    font: inherit;
+}
+
+[data-page-arrow][hidden],
+[data-page-spinner][hidden] {
+    display: none;
 }
 
 .utility-menu__status a {
@@ -1373,3 +1389,5 @@ body.app-page {
         flex-basis: 100%;
     }
 }
+
+.app-brand h1 small { font-size: 0.45em; white-space: nowrap; }

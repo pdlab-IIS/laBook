@@ -3,7 +3,7 @@
 
 <head>
     {% include "_client_runtime.html" %}
-    <title>laBook[alpha-version]</title>
+    <title>laBook[beta-mode]</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script>window.initialShelfFilter = {{ (initial_filter or "")|tojson }};</script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -15,7 +15,7 @@
     <!-- Font Awesome Free by @fontawesome 
        Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ 
        https://fontawesome.com/license/free -->
-    <meta property="og:title"        content="laBook">
+    <meta property="og:title"        content="laBook[beta-mode]">
     <meta property="og:description"  content="laBook is a book management system for libraries and personal collections.">
     <meta property="og:type"         content="website">
     <meta property="og:url"          content="{{ url_for('hello_world', _external=True) }}">
@@ -32,7 +32,7 @@
     <p>バージョンアップしました！棚卸(連続登録)機能は「≡」の中にあります→</p>
     <header class="app-header">
         <a class="app-brand" href="./">
-            <h1><i class="fa-solid fa-database" aria-hidden="true"></i>laBook</h1>
+            <h1><i class="fa-solid fa-database" aria-hidden="true"></i>laBook <small>[beta-mode]</small></h1>
         </a>
         <div class="app-header-actions">
             <button type="button" id="btnScanner" class="app-header-action" aria-label="スキャナー">
@@ -72,12 +72,14 @@
                         <span>棚卸し / Continuous:</span>
                         <span id="lockModeStatus" class="utility-menu__status" aria-live="polite">OFF</span>
                     </button>
-                    <button type="button" id="pageSizeBtn" class="utility-menu__item grey"
-                            aria-label="1ページあたりの表示件数を変更">
+                    <label class="utility-menu__item utility-menu__page-size" for="pageSizeSelect">
                         <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
-                        <span>Displayed items:</span>
-                        <span id="pageSizeStatus" class="utility-menu__status" aria-live="polite">25</span>
-                    </button>
+                        <span>Items per page:</span>
+                        <select id="pageSizeSelect" size="1" aria-label="1ページあたりの表示件数">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                        </select>
+                    </label>
                     <button type="button" id="spnSpd" class="utility-menu__item utility-menu__access">
                         <i class="fa-solid fa-network-wired" aria-hidden="true"></i>
                         <span>Access mode:</span>

@@ -10,10 +10,40 @@ let controller;
 let currentRequestId = 0;
 
 let currentPage = 1;
-const pageSizeOptions = [10, 25, 50, 100];
+const remoteBookList = LaBook.gateway || !window.location.hostname.includes('labook');
+const pageSizeOptions = remoteBookList ? [10, 25] : [10, 25, 50, 100];
 let pageSize = readPageSize();
 let totalBooksCount = 0;
 let lastkey = "";
+let pageNavigationReadyAt = 0;
+let pageNavigationLoading = false;
+let pageNavigationTimer;
+
+function pageNavigationBlocked() {
+    return remoteBookList && (pageNavigationLoading || performance.now() < pageNavigationReadyAt);
+}
+
+function renderPageNavigation() {
+    const blocked = pageNavigationBlocked();
+    const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+    document.querySelectorAll('[data-page-action="prev"]').forEach(button => {
+        button.disabled = blocked || currentPage <= 1;
+    });
+    document.querySelectorAll('[data-page-action="next"]').forEach(button => {
+        button.disabled = blocked || currentPage >= totalPages;
+    });
+    document.querySelectorAll('[data-page-action]').forEach(button => {
+        button.querySelector('[data-page-arrow]').hidden = blocked;
+        button.querySelector('[data-page-spinner]').hidden = !blocked;
+        button.setAttribute('aria-busy', String(blocked));
+    });
+    document.getElementById('pageSizeSelect').disabled = blocked;
+    if (remoteBookList && !pageNavigationLoading && performance.now() < pageNavigationReadyAt) {
+        clearTimeout(pageNavigationTimer);
+        pageNavigationTimer = setTimeout(renderPageNavigation,
+            Math.ceil(pageNavigationReadyAt - performance.now()));
+    }
+}
 
 function readPageSize() {
     const match = document.cookie.match(/(?:^|;\s*)bookPageSize=(\d+)(?:;|$)/);
@@ -32,8 +62,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const spnLockMode = document.getElementById('spnLockMode');
     const lockModeStatus = document.getElementById('lockModeStatus');
     const spnSpd = document.getElementById('spnSpd');
-    const pageSizeBtn = document.getElementById('pageSizeBtn');
-    const pageSizeStatus = document.getElementById('pageSizeStatus');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
     const utilityMenu = document.getElementById('utilityMenu');
     const utilityMenuToggle = utilityMenu.querySelector('.utility-menu__toggle');
     const utilityMenuPanel = document.getElementById('utilityMenuPanel');
@@ -208,10 +237,21 @@ document.addEventListener('DOMContentLoaded', async function () {
         searchInput.focus();
     }
 
+    let localDestination = null;
+    let localCheckPending = false;
+    async function checkLocalAccess() {
+        if (!remoteBookList || !LaBook.localUrl || localCheckPending) return;
+        localCheckPending = true;
+        localDestination = null;
+        renderAccessMode();
+        try { localDestination = await LaBook.reachableLocalDestination(); }
+        finally { localCheckPending = false; renderAccessMode(); }
+    }
+
     function renderAccessMode() {
         const status = spnSpd.querySelector('.utility-menu__status');
 
-        if (window.location.href.includes('labook')) {
+        if (!remoteBookList) {
             status.textContent = 'LOCAL';
             spnSpd.title = 'You are in LOCAL mode now';
             spnSpd.disabled = true;
@@ -219,8 +259,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         status.textContent = 'REMOTE';
-        spnSpd.title = 'Change to LOCAL mode (Prototyping&DesignLab5G WiFi only. Also check that you are not using a VPN)';
-        spnSpd.disabled = false;
+        spnSpd.title = localCheckPending ? 'Checking local access…' : localDestination
+            ? 'Switch to LOCAL mode' : 'Try switching to LOCAL mode';
+        spnSpd.disabled = !LaBook.localDestinationUrl();
+        spnSpd.setAttribute('aria-busy', String(localCheckPending));
     }
 
     const initialShelfFilter = (window.initialShelfFilter || '').trim();
@@ -229,12 +271,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     renderAccessMode();
-    pageSizeStatus.textContent = String(pageSize);
+    checkLocalAccess();
+    pageSizeSelect.replaceChildren(...pageSizeOptions.map(value => new Option(String(value), String(value))));
+    pageSizeSelect.value = String(pageSize);
 
     utilityMenuToggle.addEventListener('click', function () {
         const willOpen = utilityMenuPanel.hidden;
         utilityMenuPanel.hidden = !willOpen;
         utilityMenuToggle.setAttribute('aria-expanded', String(willOpen));
+        if (willOpen && !localDestination) checkLocalAccess();
     });
     utilityMenu.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
@@ -355,17 +400,23 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('manageUsersBtn').addEventListener('click', function () {
         window.location.href = this.dataset.url;
     });
-    pageSizeBtn.addEventListener('click', function () {
-        const currentIndex = pageSizeOptions.indexOf(pageSize);
-        pageSize = pageSizeOptions[(currentIndex + 1) % pageSizeOptions.length];
-        pageSizeStatus.textContent = String(pageSize);
+    pageSizeSelect.addEventListener('change', function () {
+        const selectedSize = Number(pageSizeSelect.value);
+        if (pageNavigationBlocked() || !pageSizeOptions.includes(selectedSize)) {
+            pageSizeSelect.value = String(pageSize);
+            return;
+        }
+        if (selectedSize === pageSize) return;
+        pageSize = selectedSize;
         savePageSize();
         currentPage = 1;
         updateBooksTable();
     });
     spnSpd.addEventListener('click', function () {
-        if (!spnSpd.disabled && LaBook.localUrl) {
-            window.location.href = LaBook.localUrl;
+        const destination = LaBook.localDestinationUrl();
+        if (!spnSpd.disabled && destination) {
+            const message = 'ローカルモードに切り替えます。研究室WiFiに接続していることを確認してOKを押してください';
+            if (window.confirm(message)) window.location.assign(destination);
         }
     });
     if (!LaBook.localUrl) spnSpd.disabled = true;
@@ -407,12 +458,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         window.location.href = LaBook.url('/books/manage?isbn=0');
     });
     document.querySelectorAll('[data-page-action="prev"]').forEach(button => button.addEventListener('click', function () {
+        if (pageNavigationBlocked()) return;
         if (currentPage > 1) {
             currentPage--;
             updateBooksTable();
         }
     }));
     document.querySelectorAll('[data-page-action="next"]').forEach(button => button.addEventListener('click', function () {
+        if (pageNavigationBlocked()) return;
         if (currentPage * pageSize < totalBooksCount) {
             currentPage++;
             updateBooksTable();
@@ -456,6 +509,12 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     controller = new AbortController();
     const requestId = ++currentRequestId;
     const loadingStartedAt = performance.now();
+    if (remoteBookList) {
+        clearTimeout(pageNavigationTimer);
+        pageNavigationLoading = true;
+        pageNavigationReadyAt = loadingStartedAt + 3000;
+        renderPageNavigation();
+    }
     loadingIndicator.hidden = false;
     booksTable.setAttribute('aria-busy', 'true');
 
@@ -491,6 +550,8 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         if (requestId === currentRequestId) {
             loadingIndicator.hidden = true;
             booksTable.removeAttribute('aria-busy');
+            pageNavigationLoading = false;
+            renderPageNavigation();
         }
     }
 
@@ -502,12 +563,7 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
     document.querySelectorAll('[data-page-info]').forEach(info => {
         info.textContent = `Page ${currentPage} / ${totalPages} (${startEntry}-${endEntry} of ${totalBooksCount})`;
     });
-    document.querySelectorAll('[data-page-action="prev"]').forEach(button => {
-        button.disabled = currentPage <= 1;
-    });
-    document.querySelectorAll('[data-page-action="next"]').forEach(button => {
-        button.disabled = currentPage >= totalPages;
-    });
+    renderPageNavigation();
 
     tableBody.replaceChildren();
     pagedBooks.forEach((book, idx) => {
@@ -529,6 +585,8 @@ async function updateBooksTable(sortKey = currentSortKey, sortOrder = currentSor
         coverCell.className = 'clickable-cover book-cover-column';
         coverCell.style.cursor = 'pointer';
         const coverImage = document.createElement('img');
+        coverImage.loading = 'lazy';
+        coverImage.decoding = 'async';
         coverImage.src = LaBook.url(coverSrc);
         coverImage.alt = 'Cover Image';
         coverImage.style.maxWidth = '60px';

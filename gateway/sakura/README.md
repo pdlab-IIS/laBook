@@ -38,3 +38,37 @@ page hamburger menu; other pages hide that menu. The logged-out page does not
 automatically restart sign-in. Old deployed demos and trials have been removed.
 Reusable source and tests remain. See the operations document for rollback and
 known hosting limits; never reuse deleted trial deployment settings.
+
+Every asset request still passes the session and access checks. Successful GET
+responses for fixed static-file and cover paths can then be served from the
+private `state/asset-cache` directory, reducing new upstream connections. API
+responses, HTML, mutations, query-bearing URLs and errors are not cached.
+Static files expire after 60 seconds and covers after 300 seconds; each object
+is limited to 2 MiB and the cache to 64 MiB. After replacing a static file,
+allow 60 seconds for existing entries to expire or remove its private cache
+entry. Browser responses remain no-store. Cover images load lazily.
+
+`state/gateway-errors.log` records bounded, private failure diagnostics (about
+1 MiB): status, safe reason, cURL error number, elapsed time and byte counts.
+It excludes URLs, credentials, cookies and user identities. A 502 with cURL 35
+and upstream status 0 indicates a TLS connection failure before an HTTP
+response; this alone does not establish an ngrok quota violation. Transport
+errors no longer instruct users to authenticate again. Never commit these logs
+or deployed network configuration.
+
+When `LABOOK_LOCAL_URL` is configured privately, the remote book-list page
+probes that local origin's `healthz` endpoint in the background. A
+successful network response marks local access as confirmed. The Access mode
+button is available whenever a valid local destination is configured, even when
+the probe fails. Clicking it asks for confirmation before navigating with the
+gateway prefix removed and the query/fragment retained. Opening the menu
+retries an unconfirmed connection. The probe sends no credentials
+or referrer and allows no redirects; its opaque response confirms reachability,
+not application readiness. Failure or a ten-second timeout leaves access unconfirmed.
+Local-network permission and mixed-content restrictions depend on the browser;
+this feature does not bypass them. Keep the actual local URL outside Git.
+
+Remote lists offer 10 or 25 items per page; local lists also offer 50 and 100.
+Remote pagination and page-size changes are disabled while loading and until
+three seconds after the list request starts, with spinners replacing the arrows.
+The UI and document titles identify this release as `[beta-mode]`.

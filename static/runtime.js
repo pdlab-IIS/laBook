@@ -61,6 +61,47 @@
             window.location.assign(url('/_auth/logged-out'));
         } catch (error) { window.alert(error.message); }
     }
-    window.LaBook = Object.freeze({url, fetch: request, prefix, shelfCode,
-        logout, localUrl: config.gateway ? '' : config.localUrl || '', gateway: config.gateway === true});
+    function localNavigationTargets() {
+        if (!config.localUrl) return false;
+        let destination;
+        let probe;
+        try {
+            const base = new URL(config.localUrl);
+            if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password
+                || base.origin === window.location.origin) return false;
+            const path = window.location.pathname;
+            if (prefix && path !== prefix && !path.startsWith(prefix + '/')) return false;
+            const relative = (prefix ? path.slice(prefix.length) : path).replace(/^\/+/, '');
+            base.pathname = base.pathname.replace(/\/?$/, '/');
+            base.search = ''; base.hash = '';
+            probe = new URL('healthz', base);
+            destination = new URL(relative, base);
+            if (destination.origin !== base.origin) return false;
+            destination.search = window.location.search;
+            destination.hash = window.location.hash;
+        } catch (_) { return false; }
+        return {destination, probe};
+    }
+    function localDestinationUrl() {
+        return localNavigationTargets()?.destination?.href || '';
+    }
+    async function reachableLocalDestination() {
+        const targets = localNavigationTargets();
+        if (!targets) return false;
+        const {destination, probe} = targets;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        try {
+            // Reachability only: opaque responses do not disclose local data.
+            // Browsers may require local-network permission or block mixed content.
+            await window.fetch(probe.href, {mode: 'no-cors', credentials: 'omit',
+                cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer',
+                targetAddressSpace: 'local', signal: controller.signal});
+            if (controller.signal.aborted) return false;
+            return destination.href;
+        } catch (_) { return false; }
+        finally { clearTimeout(timeout); }
+    }
+    window.LaBook = Object.freeze({url, fetch: request, prefix, shelfCode, reachableLocalDestination, localDestinationUrl,
+        logout, localUrl: config.localUrl || '', gateway: config.gateway === true});
 })();

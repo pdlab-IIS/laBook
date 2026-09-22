@@ -2,10 +2,13 @@
 declare(strict_types=1);
 namespace LaBookGateway;
 use RuntimeException;
+require_once __DIR__ . '/AssetCache.php';
 
 /** Fixed HTTPS upstream; no browser-selected destination or credentials. */
 final class Relay
 {
+    /** Numeric transport diagnostics only; never headers, URLs or payloads. */
+    public array $failure = [];
     private string $secret;
     public function __construct(private array $config)
     {
@@ -93,6 +96,15 @@ final class Relay
     {
         [$type, $body] = self::body($method, $target);
         $headers = $this->signedHeaders($method, $target, $subject, $type, $body);
+        $cache = AssetCache::eligible($method, $target)
+            ? new AssetCache(__DIR__ . '/../state/asset-cache', $this->config['upstream_origin'], $target) : null;
+        $cached = $cache?->load(time());
+        if ($cached !== null) {
+            http_response_code(200);
+            foreach ($cached['headers'] as $name => $value) { header($name . ': ' . $value); }
+            header('Content-Length: ' . strlen($cached['body']));
+            echo $cached['body']; exit;
+        }
         foreach (['HTTP_ACCEPT' => 'Accept', 'HTTP_IF_NONE_MATCH' => 'If-None-Match',
                   'HTTP_IF_MODIFIED_SINCE' => 'If-Modified-Since'] as $source => $name) {
             $value = $_SERVER[$source] ?? '';
@@ -125,15 +137,22 @@ final class Relay
         elseif (!in_array($method, ['GET', 'OPTIONS'], true) || $body !== '') { curl_setopt($curl, CURLOPT_POSTFIELDS, $body); }
         $success = curl_exec($curl);
         $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-        $errno = curl_errno($curl); curl_close($curl);
+        $errno = curl_errno($curl);
+        $elapsed = curl_getinfo($curl, CURLINFO_TOTAL_TIME);
+        curl_close($curl);
         if ($success === false || $status < 200 || $status > 599
             || !in_array(strtolower($responseHeaders['content-encoding'] ?? 'identity'), ['', 'identity'], true)) {
+            $this->failure = ['upstream_status' => $status, 'curl_errno' => $errno,
+                'elapsed_ms' => (int)round($elapsed * 1000), 'header_bytes' => $headerBytes,
+                'body_bytes' => strlen($responseBody),
+                'encoded_response' => !in_array(strtolower($responseHeaders['content-encoding'] ?? 'identity'), ['', 'identity'], true)];
             throw new RuntimeException($errno === CURLE_OPERATION_TIMEDOUT ? 'upstream_timeout' : 'upstream_failed');
         }
         if (isset($responseHeaders['location'])) {
             try { $responseHeaders['location'] = $this->location($responseHeaders['location']); }
             catch (RuntimeException $e) { throw new RuntimeException('upstream_failed'); }
         }
+        $cache?->store($status, $responseHeaders, $responseBody, time());
         http_response_code($status);
         // Cookies, CORS, hop-by-hop fields and upstream cache rules never cross.
         foreach (['content-type', 'content-disposition', 'etag', 'last-modified', 'location', 'allow'] as $name) {

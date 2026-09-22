@@ -151,7 +151,8 @@ try {
             . '<form method="post" action="' . escaped($prefix . '/_auth/logout') . '">'
             . '<input type="hidden" name="csrf" value="' . escaped($csrf) . '"><button>ログアウト</button></form>');
     }
-    (new Relay($c))->forward($method, $target, $subject);
+    $relay = new Relay($c);
+    $relay->forward($method, $target, $subject);
 } catch (Throwable $e) {
     if ($store !== null) { try { $store->close(); } catch (Throwable $ignored) {} }
     $status = match ($e->getMessage()) {
@@ -159,6 +160,24 @@ try {
         'body_too_large' => 413, 'body_invalid' => 400, 'upstream_timeout' => 504,
         'upstream_failed' => 502, default => 503
     };
+    // Bounded private diagnostics: no URL, query, identity, cookie or secret.
+    $record = ['time' => gmdate('c'), 'status' => $status,
+        'reason' => in_array($e->getMessage(), ['csrf_rejected', 'workspace_mismatch', 'identity_rejected',
+            'state_invalid', 'access_denied', 'target_invalid', 'body_too_large', 'body_invalid',
+            'upstream_timeout', 'upstream_failed'], true) ? $e->getMessage() : 'internal_error',
+        'transport' => isset($relay) ? $relay->failure : []];
+    $log = @fopen(__DIR__ . '/state/gateway-errors.log', 'c+');
+    if ($log !== false) {
+        if (flock($log, LOCK_EX)) {
+            if (fstat($log)['size'] > 1048576) { ftruncate($log, 0); }
+            fseek($log, 0, SEEK_END); fwrite($log, json_encode($record) . "\n");
+            flock($log, LOCK_UN);
+        }
+        fclose($log);
+    }
+    $description = in_array($status, [502, 504], true)
+        ? 'サーバーとの通信に失敗しました。少し待ってから再度お試しください。再ログインは不要です。'
+        : '処理を完了できませんでした。ログイン画面からやり直してください。';
     jsonReply($status, ['error' => $status === 503 ? 'gateway_unavailable' : 'request_rejected',
-        'description' => '処理を完了できませんでした。ログイン画面からやり直してください。']);
+        'description' => $description]);
 }
