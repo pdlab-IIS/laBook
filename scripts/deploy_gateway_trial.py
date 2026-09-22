@@ -51,16 +51,23 @@ def check_web(config):
         expect(status == 303 and '/_auth/login?return=' in headers.get('Location', ''), 'shelf login return missing')
         status, headers, body = request('/index.php/_auth/login?return=%2F%2Foutside.invalid')
         expect(status == 200, 'login form or PATH_INFO unavailable')
-        expect('no-store' in headers.get('Cache-Control', '') and headers.get('Referrer-Policy') == 'no-referrer', 'privacy headers missing')
+        nonce = re.search(r'<script nonce="([A-Za-z0-9+/=]+)">', body)
+        expect(nonce is not None and "script-src 'nonce-" + nonce.group(1) + "'" in headers.get('Content-Security-Policy', ''), 'automatic login script lacks CSP nonce')
+        expect('document.getElementById("slack-login").submit()' in body and '<noscript><button>' in body, 'automatic login or no-script fallback missing')
+        expect('no-store' in headers.get('Cache-Control', '') and headers.get('Referrer-Policy') == 'strict-origin', 'privacy headers missing')
         token = re.search(r'name="csrf" value="([a-f0-9]{64})"', body)
         expect(token is not None, 'login CSRF missing')
         expect('value="/' + config['public_dir'] + '/index.php/"' in body, 'unsafe return URL retained')
-        cookie = next(c for c in jar if c.name in ['LABOOK_GATE_SESSION', 'ENC_LABOOK_GATE_SESSION'])
+        cookie = next(c for c in jar if c.name in ['LABOOK_GATE_PREAUTH', 'ENC_LABOOK_GATE_PREAUTH'])
         expect(cookie.secure and cookie.path == '/' + config['public_dir'] + '/'
                and cookie.get_nonstandard_attr('SameSite') == 'Lax', 'session cookie attributes invalid')
         payload = urllib.parse.urlencode({'csrf': token.group(1), 'return': '/' + config['public_dir'] + '/index.php/'}).encode()
         status, _, _ = request('/index.php/_auth/login', data=payload, headers={'Origin': 'https://outside.invalid'})
         expect(status == 403, 'wrong Origin accepted')
+        status, _, _ = request('/index.php/_auth/login', data=payload, headers={'Origin': 'null'})
+        expect(status == 403, 'null Origin accepted')
+        status, _, _ = request('/index.php/_auth/login', data=payload)
+        expect(status == 403, 'missing Origin accepted')
         status, _, _ = request('/index.php/_auth/login', data=b'csrf=wrong', headers={'Origin': origin})
         expect(status == 403, 'wrong CSRF accepted')
         status, _, body = request('/index.php/_auth/login?flow=current', data=payload, headers={'Origin': origin})
@@ -95,6 +102,8 @@ def check_web(config):
         expect(status == 400, 'replay accepted')
         status, _, _ = request('/index.php/_auth/session')
         expect(status == 401, 'cancellation created a session')
+        status, _, body = request('/index.php/_auth/logged-out')
+        expect(status == 200 and 'ログアウトしました' in body and '<script' not in body, 'logout must not restart automatic login')
     return {'checks': count, 'status': 'passed', 'real_slack_login': 'pending'}
 
 
@@ -142,6 +151,7 @@ def main():
         commands += ['php ' + q(str(private / 'tests/session_test.php')),
                      'php ' + q(str(private / 'tests/gateway_test.php')),
                      'php ' + q(str(private / 'tests/store_test.php')),
+                     'php ' + q(str(private / 'tests/auth_test.php')),
                      'mkdir -m 755 ' + q(public),
                      'cp ' + q(str(private / 'public/index.php')) + ' ' + q(str(private / 'public/callback.php')) + ' ' + q(public),
                      'chmod 644 ' + q(public + '/index.php') + ' ' + q(public + '/callback.php')]

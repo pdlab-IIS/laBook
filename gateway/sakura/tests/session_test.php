@@ -35,16 +35,16 @@ foreach ([['team_id' => 'TOTHER'], ['workspace_checked' => false], ['user_id' =>
     rejected(fn() => $policy->establish(array_replace($identity, $change), 2000000000), 'identity_rejected');
 }
 
-foreach ([1800, 3600] as $elapsed) {
+foreach ([30 * 86400, 31 * 86400] as $elapsed) {
     $expired = $another;
-    if ($elapsed === 3600) { $expired['last_seen'] = 2000003599; }
+    $expired['last_seen'] = 2000000000 + $elapsed - 1;
     rejected(function () use ($policy, &$expired, $elapsed) {
         $policy->authorize($expired, 2000000000 + $elapsed);
     }, 'login_required');
     check($expired === []);
 }
 $border = $another;
-check($policy->authorize($border, 2000001799) === 'slack:TTEST:UTEST');
+check($policy->authorize($border, 2000000000 + 30 * 86400 - 1) === 'slack:TTEST:UTEST');
 foreach ([['session_generation' => 'test-2'], ['expected_team_id' => 'TOTHER'],
     ['revoked_subjects' => ['slack:TTEST:UTEST']]] as $change) {
     $copy = $another;

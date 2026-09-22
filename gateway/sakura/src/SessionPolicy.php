@@ -31,7 +31,7 @@ final class SessionPolicy
         }
     }
 
-    /** Call only with the result of Oidc::exchange() after state/nonce checks. */
+    /** Call only with verified OIDC claims after state, nonce and signature checks. */
     public function establish(array $verified, int $now): array
     {
         if (($verified['workspace_checked'] ?? null) !== true
@@ -60,7 +60,7 @@ final class SessionPolicy
             || in_array($subject, $this->config['revoked_subjects'], true)
             || !is_int($session['issued_at'] ?? null) || !is_int($session['last_seen'] ?? null)
             || $session['issued_at'] > $session['last_seen'] || $session['last_seen'] > $now
-            || $now - $session['issued_at'] >= 3600 || $now - $session['last_seen'] >= 1800
+            || $now - $session['issued_at'] >= 30 * 86400
             || !is_string($session['csrf'] ?? null) || !preg_match('/\A[a-f0-9]{64}\z/', $session['csrf'])) {
             $session = [];
             throw new RuntimeException('login_required');

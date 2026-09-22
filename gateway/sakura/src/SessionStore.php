@@ -12,7 +12,7 @@ final class SessionStore
         ini_set('session.use_only_cookies', '1');
         ini_set('session.use_trans_sid', '0');
         ini_set('session.gc_maxlifetime', '3600');
-        session_name('LABOOK_GATE_SESSION');
+        session_name('LABOOK_GATE_PREAUTH');
         session_save_path($directory);
         session_set_cookie_params(['lifetime' => 3600, 'path' => $cookiePath,
             'secure' => true, 'httponly' => true, 'samesite' => 'Lax']);
@@ -34,7 +34,7 @@ final class SessionStore
     {
         $_SESSION = [];
         if (!session_destroy()) { throw new RuntimeException('session_unavailable'); }
-        setcookie('LABOOK_GATE_SESSION', '', ['expires' => 1, 'path' => $this->cookiePath,
+        setcookie('LABOOK_GATE_PREAUTH', '', ['expires' => 1, 'path' => $this->cookiePath,
             'secure' => true, 'httponly' => true, 'samesite' => 'Lax']);
     }
 }

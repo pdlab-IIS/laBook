@@ -11,7 +11,7 @@ try {
     $before = session_id();
     $params = session_get_cookie_params();
     check($params['secure'] && $params['httponly'] && $params['samesite'] === 'Lax' && $params['path'] === '/trial/');
-    check(session_name() === 'LABOOK_GATE_SESSION' && ini_get('session.use_strict_mode') === '1');
+    check(session_name() === 'LABOOK_GATE_PREAUTH' && ini_get('session.use_strict_mode') === '1');
     $store->establish(['subject'=>'slack:TTEST:UTEST']);
     $after = session_id();
     check($before !== $after);

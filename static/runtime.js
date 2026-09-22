@@ -58,7 +58,7 @@
         try {
             const response = await request('/_auth/logout', {method: 'POST'});
             if (!response.ok && response.status !== 401) throw new Error('ログアウトを完了できませんでした。');
-            window.location.assign(url('/_auth/login'));
+            window.location.assign(url('/_auth/logged-out'));
         } catch (error) { window.alert(error.message); }
     }
     window.LaBook = Object.freeze({url, fetch: request, prefix, shelfCode,

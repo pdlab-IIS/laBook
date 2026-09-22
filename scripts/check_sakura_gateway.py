@@ -31,10 +31,10 @@ def main():
     # Reuse one connection: shared hosting can throttle many short SSH sessions.
     commands = ['php -l ' + shlex.quote(str(remote / name)) + ' >/dev/null' for name in files]
     commands += ['php ' + shlex.quote(str(remote / ('tests/' + name)))
-                 for name in ['security_test.php', 'session_test.php', 'gateway_test.php', 'store_test.php']]
+                 for name in ['security_test.php', 'session_test.php', 'gateway_test.php', 'store_test.php', 'auth_test.php']]
     output = ssh(config, ' && '.join(commands), json.dumps(signature_vectors()).encode()).decode()
     decoder = json.JSONDecoder()
-    for key in ['signing', 'sessions', 'gateway', 'store']:
+    for key in ['signing', 'sessions', 'gateway', 'store', 'auth']:
         result, end = decoder.raw_decode(output.lstrip())
         tests[key] = result
         output = output.lstrip()[end:]

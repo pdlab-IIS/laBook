@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use LaBookGateway\AuthStore;
 use LaBookGateway\GatewayConfig;
 use LaBookGateway\LoginTransactions;
 use LaBookGateway\RequestTarget;
@@ -24,17 +25,27 @@ function jsonReply(int $status, array $value): never {
     echo json_encode($value, JSON_UNESCAPED_UNICODE); exit;
 }
 function gotoPage(string $url): never { header('Location: ' . $url, true, 303); exit; }
-function authPage(string $content): never {
+function sessionCookie(string $value, string $path, int $expires): void {
+    setcookie('LABOOK_GATE_SESSION', $value, ['expires' => $expires, 'path' => $path,
+        'secure' => true, 'httponly' => true, 'samesite' => 'Lax']);
+}
+function authPage(string $content, bool $autoLogin = false): never {
     header('Content-Type: text/html; charset=utf-8');
-    header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+    // Ordinary form POSTs need a real Origin for CSRF checks; paths stay private.
+    header('Referrer-Policy: strict-origin');
+    $nonce = base64_encode(random_bytes(24));
+    $scriptPolicy = $autoLogin ? "; script-src 'nonce-" . $nonce . "'" : '';
+    header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" . $scriptPolicy);
     echo '<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
         . '<title>laBook ログイン</title><style>body{font:16px/1.7 system-ui;max-width:640px;margin:60px auto;padding:24px}button{font:inherit;padding:10px 20px}</style>'
-        . '<main>' . $content . '</main></html>'; exit;
+        . '<main>' . $content . '</main>'
+        . ($autoLogin ? '<script nonce="' . escaped($nonce) . '">document.getElementById("slack-login").submit();</script>' : '')
+        . '</html>'; exit;
 }
 
 $store = null;
 try {
-    foreach (['RequestTarget', 'SessionPolicy', 'SessionStore', 'LoginTransactions', 'Security', 'Relay', 'GatewayConfig'] as $name) {
+    foreach (['RequestTarget', 'SessionPolicy', 'SessionStore', 'AuthStore', 'LoginTransactions', 'Security', 'Relay', 'GatewayConfig'] as $name) {
         require __DIR__ . '/src/' . $name . '.php';
     }
     require __DIR__ . '/vendor/autoload.php';
@@ -50,6 +61,8 @@ try {
     $cookiePath = parse_url($c['public_url'], PHP_URL_PATH) . '/';
     $stateDir = __DIR__ . '/state';
     $policy = new SessionPolicy($c);
+    $db = new AuthStore($stateDir . '/auth.sqlite');
+    $sessionToken = scalar($_COOKIE, 'LABOOK_GATE_SESSION');
     if (($gatewayAction ?? '') === 'callback') {
         if (!in_array($method, ['GET', 'POST'], true) || (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 16384
             || strlen($_SERVER['QUERY_STRING'] ?? '') > 16384) { throw new RuntimeException('state_invalid'); }
@@ -58,14 +71,12 @@ try {
             scalar($input, 'state'), scalar($_COOKIE, 'LABOOK_GATE_TX'));
         setcookie('LABOOK_GATE_TX', '', ['expires' => 1, 'path' => $cookiePath,
             'secure' => true, 'httponly' => true, 'samesite' => 'None']);
-        $store = new SessionStore($stateDir . '/sessions', $cookiePath);
-        unset($_SESSION['identity']);
         if (scalar($input, 'error') !== '') { throw new RuntimeException('access_denied'); }
         $code = scalar($input, 'code');
         if ($code === '' || strlen($code) > 4096) { throw new RuntimeException('state_invalid'); }
         $verified = Oidc::exchange($c, $code, $tx['nonce']);
-        $store->establish($policy->establish($verified, time()));
-        $store->close();
+        $session = $db->establish($verified, $sessionToken, $policy, time());
+        sessionCookie($session['token'], $cookiePath, $session['expires_at']);
         gotoPage($c['public_origin'] . RequestTarget::returnPath($tx['return_path'], $prefix));
     }
     $raw = $_SERVER['REQUEST_URI'];
@@ -79,21 +90,26 @@ try {
     if (!in_array($method, ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true)) {
         jsonReply(405, ['error' => 'method_not_allowed']);
     }
-    $store = new SessionStore($stateDir . '/sessions', $cookiePath);
+    if ($path === '/_auth/logged-out' && $method === 'GET') {
+        authPage('<h1>ログアウトしました</h1><p><a href="' . escaped($prefix . '/_auth/login') . '">再ログイン</a></p>');
+    }
     if ($path === '/_auth/login') {
+        $store = new SessionStore($stateDir . '/sessions', $cookiePath);
         $return = RequestTarget::returnPath(scalar($method === 'POST' ? $_POST : $_GET, 'return'), $prefix);
         if ($method === 'GET') {
             $csrf = $_SESSION['login_csrf']; $store->close();
-            authPage('<h1>laBookにログイン</h1><p>研究室のSlackアカウントでログインしてください。</p>'
-                . '<form method="post" action="' . escaped($prefix . '/_auth/login') . '">'
+            authPage('<p>Slackへ移動しています…</p>'
+                . '<form id="slack-login" method="post" action="' . escaped($prefix . '/_auth/login') . '">'
                 . '<input type="hidden" name="csrf" value="' . escaped($csrf) . '">'
                 . '<input type="hidden" name="return" value="' . escaped($return) . '">'
-                . '<button>Slackでログイン</button></form>');
+                . '<noscript><button>Slackでログイン</button></noscript></form>', true);
         }
         if ($method !== 'POST') { jsonReply(405, ['error' => 'method_not_allowed']); }
         $policy->checkCsrf(['csrf' => $_SESSION['login_csrf']], $method, scalar($_SERVER, 'HTTP_ORIGIN'), scalar($_POST, 'csrf'));
         if (time() - ($_SESSION['last_start'] ?? 0) < 5) { jsonReply(429, ['error' => 'try_later']); }
-        $_SESSION['last_start'] = time(); unset($_SESSION['identity']);
+        $_SESSION['last_start'] = time();
+        $db->revoke($sessionToken, time());
+        sessionCookie('', $cookiePath, 1);
         $tx = (new LoginTransactions($stateDir . '/transactions.sqlite'))->create($return);
         setcookie('LABOOK_GATE_TX', $tx['browser'], ['expires' => time() + 300, 'path' => $cookiePath,
             'secure' => true, 'httponly' => true, 'samesite' => 'None']);
@@ -102,10 +118,9 @@ try {
         authPage('<meta http-equiv="refresh" content="0;url=' . escaped($destination) . '"><p>Slackへ移動します。</p>'
             . '<p><a rel="noreferrer" href="' . escaped($destination) . '">移動しない場合はこちら</a></p>');
     }
-    $_SESSION['identity'] ??= [];
-    try { $subject = $policy->authorize($_SESSION['identity'], time()); }
+    try { $identity = $db->session($sessionToken, $policy, time()); $subject = $identity['subject']; }
     catch (RuntimeException $e) {
-        $store->close();
+        if ($e->getMessage() !== 'login_required') { throw $e; }
         if ($method === 'GET' && (in_array($path, ['/', '/books/manage', '/users/manage', '/scan', '/scan/', '/L'], true)
             || str_starts_with($path, '/scan/') || str_starts_with($path, '/L/'))
             && str_contains(scalar($_SERVER, 'HTTP_ACCEPT'), 'text/html')) {
@@ -115,15 +130,16 @@ try {
     }
     $token = scalar($_SERVER, 'HTTP_X_LABOOK_CSRF');
     if ($path === '/_auth/logout' && $token === '') { $token = scalar($_POST, 'csrf'); }
-    $policy->checkCsrf($_SESSION['identity'], $method, scalar($_SERVER, 'HTTP_ORIGIN'), $token);
-    $csrf = $_SESSION['identity']['csrf'];
+    $policy->checkCsrf($identity, $method, scalar($_SERVER, 'HTTP_ORIGIN'), $token);
+    $csrf = $identity['csrf'];
     if ($path === '/_auth/logout') {
         if ($method !== 'POST') { jsonReply(405, ['error' => 'method_not_allowed']); }
-        $store->logout();
+        $db->revoke($sessionToken, time());
+        sessionCookie('', $cookiePath, 1);
         if (scalar($_SERVER, 'HTTP_X_LABOOK_CSRF') !== '') { jsonReply(200, ['logged_out' => true]); }
-        gotoPage($prefix . '/_auth/login');
+        gotoPage($prefix . '/_auth/logged-out');
     }
-    $store->close(); // Never hold PHP's session lock during upstream I/O.
+    unset($db); // No database transaction or PHP session lock during upstream I/O.
     if ($path === '/_auth/session') {
         if ($method !== 'GET') { jsonReply(405, ['error' => 'method_not_allowed']); }
         jsonReply(200, ['csrf' => $csrf]);
@@ -131,7 +147,7 @@ try {
     if ($path === '/_auth' || str_starts_with($path, '/_auth/')) { jsonReply(404, ['error' => 'not_found']); }
     if (!$c['relay_enabled']) {
         if ($path !== '/' || $method !== 'GET') { jsonReply(503, ['error' => 'relay_not_enabled']); }
-        authPage('<h1>Slackログインを確認しました</h1><p>セッションの試験入口です。laBookへの中継は準備中です。</p>'
+        authPage('<h1>Slackログインを確認しました</h1><p>ログインは30日間有効です。laBookへの中継は準備中です。</p>'
             . '<form method="post" action="' . escaped($prefix . '/_auth/logout') . '">'
             . '<input type="hidden" name="csrf" value="' . escaped($csrf) . '"><button>ログアウト</button></form>');
     }

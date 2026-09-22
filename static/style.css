@@ -153,6 +153,15 @@ h2:hover {
     white-space: nowrap;
 }
 
+.session-menu-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+.session-menu > summary { list-style: none; cursor: pointer; }
+.session-menu > summary::-webkit-details-marker { display: none; }
+.session-menu:not([open]) > .utility-menu__panel { display: none; }
+
 .utility-menu {
     position: relative;
 }
