@@ -1,23 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 
 <head>
-    <title>laBook[alpha-version] | Scan</title>
+    {% include "_client_runtime.html" %}
+    <title>laBook[beta-mode] | Scan</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='scanner-20260923') }}">
     <script src="{{ url_for('static', filename='quagga.min.js') }}"></script>
     <script src="https://kit.fontawesome.com/6be837db5c.js" crossorigin="anonymous"></script>
-    <script src="{{ url_for('static', filename='scanner.js' )}}"></script>
+    <script src="{{ url_for('static', filename='scanner.js', v='scanner-20260923') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='bdb-favicon.svg') }}" type="image/svg+xml" />
     <!-- Font Awesome Free by @fontawesome 
        Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ 
        https://fontawesome.com/license/free -->
 </head>
 
-<body>
+<body class="app-page scan-page">
+    {% include "_session_bar.html" %}
     {% include "_development_overlay.html" %}
-     <body>
-        <button id='backPage' onclick='window.location.href="/"' style="width: fit-content;">
+        <button id='backPage' onclick='window.location.href=LaBook.url("/")' style="width: fit-content;">
         <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
                 </button>
                 <h2><i class="fa-solid fa-location-dot"></i> {{ location_code }}</h2>
@@ -31,7 +32,15 @@
             <font color="red"><i class="fa-regular fa-rectangle-xmark"></i></font> <i class="fa-solid fa-barcode"></i>
             192xxxxxxxxxx
         </h2>
-        <div><canvas id="preview" class="camera"></canvas></div>
-        <input type="text" id="jan" readonly style="text-align: center;" placeholder="xxxxxxxxxxxxx"></input>
+        <div class="scan-camera"><canvas id="preview" class="camera" aria-label="バーコード読み取り用のカメラ映像"></canvas></div>
+        <input type="text" id="jan" readonly aria-label="読み取ったバーコード" placeholder="xxxxxxxxxxxxx">
         <input id="location_code" type="hidden" value="{{ location_code }}">
+        <div id="scan-loading" class="scan-loading" role="status" aria-live="polite" hidden>
+            <div class="scan-loading__panel">
+                <span class="scan-loading__wheel" aria-hidden="true"></span>
+                <p>読み取り成功</p>
+                <p class="scan-loading__detail">書籍情報を読み込んでいます…</p>
+            </div>
+        </div>
     </body>
+</html>

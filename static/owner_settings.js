@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setBusy(true);
             message.textContent = '削除中…';
             try {
-                const response = await fetch(`/users/${control.dataset.deleteEntity}`, {method: 'DELETE'});
+                const response = await LaBook.fetch(`/users/${control.dataset.deleteEntity}`, {method: 'DELETE'});
                 if (response.ok) {
                     refresh('deleted');
                     return;
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setBusy(true);
         message.textContent = '保存中…';
         try {
-            const response = await fetch(id ? `/users/${id}` : '/users', {
+            const response = await LaBook.fetch(id ? `/users/${id}` : '/users', {
                 method: id ? 'PUT' : 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)

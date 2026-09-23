@@ -1,0 +1,2 @@
+<script id="labook-runtime" type="application/json">{{ {'prefix': request.script_root, 'gateway': request.environ.get('labook.gateway_authenticated', false), 'localUrl': runtime_local_url} | tojson }}</script>
+<script src="{{ url_for('static', filename='runtime.js') }}"></script>

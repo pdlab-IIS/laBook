@@ -1,0 +1,17 @@
+{
+  "public_origin": "",
+  "public_prefix": "/labook",
+  "public_url": "",
+  "client_id": "",
+  "client_secret": "",
+  "expected_team_id": "",
+  "workspace_login_url": "",
+  "login_flow": "workspace-entry",
+  "session_generation": "deployment-1",
+  "revoked_subjects": [],
+  "expires_at": 0,
+  "relay_enabled": false,
+  "upstream_origin": "",
+  "signing_key_id": "",
+  "signing_key": ""
+}

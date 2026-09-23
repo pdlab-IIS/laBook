@@ -1,0 +1,10 @@
+{% if request.environ.get('labook.gateway_authenticated', false) %}
+<div class="session-menu-bar" style="display: none;">
+    <details class="utility-menu session-menu">
+        <summary class="utility-menu__toggle" aria-label="メニュー"><span aria-hidden="true">☰</span></summary>
+        <div class="utility-menu__panel">
+            <button type="button" class="utility-menu__item grey" onclick="LaBook.logout()"><span aria-hidden="true">↪</span><span>Logout</span></button>
+        </div>
+    </details>
+</div>
+{% endif %}

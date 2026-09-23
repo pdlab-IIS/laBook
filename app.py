@@ -1,6 +1,11 @@
 #! /usr/bin/env python3
 
 import sqlite3
+import os
+import hashlib
+from functools import lru_cache
+from pathlib import Path
+from urllib.parse import urlsplit
 from logger_config import setup_logger
 from outbound_policy import install_requests_allowlist
 
@@ -26,10 +31,35 @@ register_blueprints(app)
 app.register_blueprint(notion_bp)
 
 
+@lru_cache(maxsize=256)
+def static_revision(path, modified_ns, size):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:16]
+
+
+@app.url_defaults
+def version_static_urls(endpoint, values):
+    if endpoint != 'static' or app.debug:
+        return
+    root = (Path(app.root_path) / 'static').resolve()
+    path = (root / values.get('filename', '')).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        return
+    stat = path.stat()
+    values['v'] = static_revision(str(path), stat.st_mtime_ns, stat.st_size)
+
+
 @app.context_processor
 def inject_runtime_environment():
     """Expose non-secret runtime flags to every rendered page."""
-    return {"is_development": app.debug}
+    local_url = os.environ.get('LABOOK_LOCAL_URL', '')
+    try:
+        parsed = urlsplit(local_url)
+        if (parsed.scheme not in ['http', 'https'] or not parsed.netloc
+                or parsed.username or parsed.password or any(ord(c) <= 32 for c in local_url)):
+            local_url = ''
+    except ValueError:
+        local_url = ''
+    return {"is_development": app.debug, "runtime_local_url": local_url}
 
 
 @app.route("/healthz")
@@ -102,6 +132,12 @@ def serve_cover(filename):
 @app.route('/static/<filename>')
 def static(filename):
     response = send_from_directory('static', filename)
+    path = Path(app.root_path) / 'static' / filename
+    if not app.debug and path.is_file():
+        stat = path.stat()
+        if request.args.get('v') == static_revision(str(path), stat.st_mtime_ns, stat.st_size):
+            response.headers['Cache-Control'] = 'private, max-age=604800, immutable'
+            return response
     if filename.endswith(('.js', '.css', '.html')):
         if app.debug:
             response.headers["Cache-Control"] = "no-store, must-revalidate"

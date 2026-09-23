@@ -17,3 +17,8 @@ keys.py
 secrets/*.dec.*
 
 logs/*
+
+# Environment-specific deployment inputs, reports, and private material.
+/deploy/local/
+/secrets/
+*.local.*

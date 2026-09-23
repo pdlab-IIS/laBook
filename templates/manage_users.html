@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    {% include "_client_runtime.html" %}
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>laBook | users & owners</title>
+    <title>laBook[beta-mode] | users & owners</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='owner_settings.js') }}" defer></script>
     <script src="https://kit.fontawesome.com/93e347c8ec.js" crossorigin="anonymous"></script>
 </head>
 <body class="app-page manage-page people-page">
+    {% include "_session_bar.html" %}
     {% include "_development_overlay.html" %}
     <header class="manage-header">
-        <button id='backPage' onclick='window.location.href="/"' aria-label="書籍一覧に戻る">
+        <button id='backPage' onclick='window.location.href=LaBook.url("/")' aria-label="書籍一覧に戻る">
             <i class="fa-solid fa-house"></i> <i class="fa-solid fa-left-long"></i>
         </button>
         <h1>users & owners</h1>

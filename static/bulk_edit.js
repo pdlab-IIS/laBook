@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dialog.show();
         locationMode.focus();
         try {
-            const response = await fetch('/users', {cache: 'no-store'});
+            const response = await LaBook.fetch('/users', {cache: 'no-store'});
             if (!response.ok) throw new Error();
             const users = await response.json();
             if (current !== generation || !dialog.open) return;
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         message.textContent = '変更中…';
         let applied = false;
         try {
-            const response = await fetch('/books/bulk', {
+            const response = await LaBook.fetch('/books/bulk', {
                 method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
             });
             const result = await response.json();

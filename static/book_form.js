@@ -5,7 +5,7 @@ async function transferToEditPage(isbn) {
     const mode = form.getAttribute('data-mode');
     if (mode !== 'edit' && await isBookExist(isbn)) {
         alert('Book already exists.\nRedirecting to manage page.');
-        window.location.href = `/books/manage?isbn=${isbn}`;
+        window.location.href = LaBook.url(`/books/manage?isbn=${isbn}`);
         form.setAttribute('data-mode', 'edit');
         return true;
     }
@@ -36,12 +36,12 @@ async function updateBook(info = true) {
 
     if (data.shelf_code) {
         try {
-            const resp = await fetch(`/shelves/by_code/${encodeURIComponent(data.shelf_code)}`);
+            const resp = await LaBook.fetch(`/shelves/by_code/${encodeURIComponent(data.shelf_code)}`);
             if (resp.ok) {
                 const shelf = await resp.json();
                 data.shelf_id = shelf.shelf_id;
             } else {
-                const createResp = await fetch('/shelves', {
+                const createResp = await LaBook.fetch('/shelves', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -74,7 +74,7 @@ async function updateBook(info = true) {
         method = 'POST';
     }
 
-    const resp = await fetch(url, {
+    const resp = await LaBook.fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -83,7 +83,7 @@ async function updateBook(info = true) {
     if (resp.ok) {
         if (info) {
             alert('Book information updated successfully.');
-            window.location.href = `/books/manage?isbn=` + isbn;
+            window.location.href = LaBook.url(`/books/manage?isbn=` + isbn);
         }
         return true
     } else {
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         btnReturnBook.style.display = 'none';
     } else {
         try {
-            const response = await fetch(`/loans/activeLoan/${isbnInput.value}`, {
+            const response = await LaBook.fetch(`/loans/activeLoan/${isbnInput.value}`, {
                 method: 'POST'
             });
             if (response.ok) {
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     if (shelfCodeInput && !shelfCodeInput.value && shelfIdInput && shelfIdInput.value && !isNaN(shelfIdInput.value)) {
         try {
-            const resp = await fetch(`/shelves/${shelfIdInput.value}`);
+            const resp = await LaBook.fetch(`/shelves/${shelfIdInput.value}`);
             if (resp.ok) {
                 const shelf = await resp.json();
                 if (shelf.shelf_code) shelfCodeInput.value = shelf.shelf_code;
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const formData = new FormData();
         formData.append('cover', file);
         try {
-            const resp = await fetch(`/books/${isbn}/cover`, {
+            const resp = await LaBook.fetch(`/books/${isbn}/cover`, {
                 method: 'POST',
                 body: formData
             });
@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 const coverImg = document.getElementById('cover_preview');
                 const cover_image_path = document.getElementById('cover_image_path');
                 if (coverImg) {
-                    coverImg.src = '/' + result.cover_image_path;
+                    coverImg.src = LaBook.url('/' + result.cover_image_path.replace(/^\//, ''));
                     cover_image_path.value = result.cover_image_path
                 }
             } else {
@@ -317,7 +317,7 @@ async function fetchBookInfo() {
 
         btnFetch.disabled = true;
         spnFetch.innerHTML = '<i class="fas fa-spinner" ></i>';
-        const response = await fetch(`/books/api/fetch_book_info/${isbn}`);
+        const response = await LaBook.fetch(`/books/api/fetch_book_info/${isbn}`);
         btnFetch.disabled = false;
         spnFetch.innerHTML = '<i class="fas fa-globe" aria-hidden="true"></i>';
         if (!response.ok) {
@@ -346,7 +346,7 @@ async function fetchBookInfo() {
             coverPathInput.value = book.cover_image_path;
 
         const coverImg = document.getElementById('cover_preview');
-        if (coverImg && book.cover_image_path) coverImg.src = '/' + book.cover_image_path;
+        if (coverImg && book.cover_image_path) coverImg.src = LaBook.url('/' + book.cover_image_path.replace(/^\//, ''));
 
     } catch (e) {
         console.error('fetch book info failed:', e);
@@ -355,9 +355,7 @@ async function fetchBookInfo() {
 
 async function mobileScan() {
     const shelfCode = document.getElementById('shelf_code').value;
-    const ngrokUrl = "https://pdlab.iis.u-tokyo.ac.jp/labook";
-
-    window.location.href = `${ngrokUrl}/scan/${shelfCode}`;
+    window.location.href = LaBook.url(`/scan/${encodeURIComponent(shelfCode)}`);
 }
 
 async function deleteBook() {
@@ -369,12 +367,12 @@ async function deleteBook() {
     if (!confirm('Are you sure you want to delete this book?')) return;
 
     try {
-        const response = await fetch(`/books/${isbn}`, {
+        const response = await LaBook.fetch(`/books/${isbn}`, {
             method: 'DELETE'
         });
         if (response.ok) {
             alert('Book deleted successfully.');
-            window.location.href = '/';
+            window.location.href = LaBook.url('/');
         } else {
             const err = await response.json();
             alert('Error: ' + (err.description || response.statusText));
@@ -397,7 +395,7 @@ async function preLoanProcess() {
     }
     localStorage.setItem(nameKey, name);
     try {
-        const resp = await fetch(`/users/by_name/${encodeURIComponent(name)}`);
+        const resp = await LaBook.fetch(`/users/by_name/${encodeURIComponent(name)}`);
         if (resp.ok) {
             const user = await resp.json();
             if (user.entity_type !== 'person') {
@@ -406,7 +404,7 @@ async function preLoanProcess() {
             }
             return user.user_id;
         } else if (resp.status === 404) {
-            const createResp = await fetch('/users', {
+            const createResp = await LaBook.fetch('/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_name: name })
@@ -433,7 +431,7 @@ async function returnBookMethod(user_id) {
     loan_id = itxLoanId.value;
     try {
         if (loan_id) {
-            const responseUpdateLoan = await fetch(`/loans/${loan_id}`, {
+            const responseUpdateLoan = await LaBook.fetch(`/loans/${loan_id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ returner_id: user_id })
@@ -466,14 +464,14 @@ async function borrowBook() {
             return false;
         }
     }
-    const respLoan = await fetch(`/loans`, {
+    const respLoan = await LaBook.fetch(`/loans`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isbn: isbn, borrower_id: user_id })
     });
     if (respLoan.ok) {
         alert('Book < ' + document.getElementById('title').value + ' >\n is borrowed by < ' + document.getElementById('itxName').value + ' > successfully.');
-        window.location.href = '/';
+        window.location.href = LaBook.url('/');
     } else {
         const err = await respLoan.json();
         alert('Error: ' + (err.description || respLoan.statusText));
@@ -487,7 +485,7 @@ async function returnBook() {
 
     if (await returnBookMethod(user_id)) {
         alert('Book < ' + document.getElementById('title').value + ' > \n is returned successfully.');
-        window.location.href = '/';
+        window.location.href = LaBook.url('/');
     } else {
         return false;
     }
@@ -520,7 +518,7 @@ async function addToNotion() {
     const payload = { isbn, title, reviewer, review };
 
     try {
-        const resp = await fetch(notionApiUrl, {
+        const resp = await LaBook.fetch(notionApiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -550,7 +548,7 @@ async function loadReviews(isbn) {
 
     showMessage('Loading...');
     try {
-        const resp = await fetch(`/api/notion/get_review_by_isbn/${encodeURIComponent(isbn)}`);
+        const resp = await LaBook.fetch(`/api/notion/get_review_by_isbn/${encodeURIComponent(isbn)}`);
         if (!resp.ok) {
             showMessage('Failed to load reviews');
             return;
