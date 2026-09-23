@@ -1,6 +1,7 @@
 # Sakura Slack OAuth gateway
 
-The active gateway automatically starts Slack sign-in and uses a fixed 30-day
+The active gateway shows a workspace guide with a copy button and starts Slack
+sign-in only when the user presses Continue. It uses a fixed 90-day
 server-side session. Command entry is not part of the user flow. See the
 [current migration plan](../../docs/sakura-auth-proxy-plan.md).
 
@@ -15,7 +16,7 @@ tokens and Slash Commands are not needed. The configured team is mandatory.
 
 `state/auth.sqlite` stores authentication users and hashed opaque session IDs.
 User identity is unique by `(slack_team_id, slack_user_id)`. It is independent of
-the RPi library Users table. Sessions expire 30 days after issuance, without
+the RPi library Users table. Sessions expire 90 days after issuance, without
 sliding renewal or membership rechecks. A new login rotates the session and CSRF;
 logout revokes the stored session as well as clearing the Cookie. Each request
 checks the current team, generation and revoked subjects. Change
@@ -24,7 +25,7 @@ reject particular subjects.
 
 The PHP pre-login session uses `LABOOK_GATE_PREAUTH` (one hour), OAuth state uses
 `LABOOK_GATE_TX` (five minutes), and the authenticated Cookie is
-`LABOOK_GATE_SESSION` (30 days). A trial site's own expiry still takes precedence.
+`LABOOK_GATE_SESSION` (90 days). A trial site's own expiry still takes precedence.
 No access/ID tokens, raw session IDs or authorization codes are stored in this DB.
 
 Tests:
