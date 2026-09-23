@@ -34,11 +34,14 @@ document.addEventListener('DOMContentLoaded', function () {
     );
 
     function Scan(first) {
+        if (DetectedCount < 0) return;
+        if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
+            setTimeout(Scan, 100, true);
+            return;
+        }
         if (first) {
             w = video.videoWidth;
             h = video.videoHeight;
-            prev.style.width = w;
-            prev.style.height = h;
             prev.setAttribute("width", w);
             prev.setAttribute("height", h);
             mw = w * 0.5;
@@ -103,8 +106,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     jan.style.color = "black";
                 }
-                window.location.href = base_url + "&isbn=" + encodeURIComponent(result.codeResult.code);
                 DetectedCount = -1;
+                document.getElementById('scan-loading').hidden = false;
+                if (stream) stream.getTracks().forEach(track => track.stop());
+                // Allow the success overlay to paint before navigation starts.
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () {
+                        window.location.href = base_url + "&isbn=" + encodeURIComponent(result.codeResult.code);
+                    });
+                });
             }
         }
     });
@@ -116,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 stream = null;
                 video.srcObject = null;
             }
-        } else {
+        } else if (DetectedCount >= 0) {
             navigator.mediaDevices.getUserMedia(
                 { "audio": false, "video": { "facingMode": "environment", "width": { "ideal": Math.min(window.innerWidth - 100, 900) }, "height": { "ideal": Math.min(window.innerHeight - 300, 900) } } }
             ).then(
@@ -132,4 +142,9 @@ document.addEventListener('DOMContentLoaded', function () {
             );
         }
     });
+});
+
+// A history-restored scanner needs a fresh camera and detection state.
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) window.location.reload();
 });

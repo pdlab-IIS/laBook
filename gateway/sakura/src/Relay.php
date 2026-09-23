@@ -101,6 +101,7 @@ final class Relay
         $cached = $cache?->load(time());
         if ($cached !== null) {
             http_response_code(200);
+            header('Cache-Control: ' . AssetCache::browserPolicy($method, $target, 200, $cached['headers']));
             foreach ($cached['headers'] as $name => $value) { header($name . ': ' . $value); }
             header('Content-Length: ' . strlen($cached['body']));
             echo $cached['body']; exit;
@@ -154,6 +155,9 @@ final class Relay
         }
         $cache?->store($status, $responseHeaders, $responseBody, time());
         http_response_code($status);
+        header('Cache-Control: ' . AssetCache::browserPolicy($method, $target, $status, $responseHeaders));
+        // Separate cached HTML across login/logout and account changes.
+        header('Vary: Cookie, Accept');
         // Cookies, CORS, hop-by-hop fields and upstream cache rules never cross.
         foreach (['content-type', 'content-disposition', 'etag', 'last-modified', 'location', 'allow'] as $name) {
             if (isset($responseHeaders[$name]) && !preg_match('/[\x00-\x1f\x7f]/', $responseHeaders[$name])) {
