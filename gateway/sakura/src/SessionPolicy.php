@@ -8,6 +8,8 @@ use RuntimeException;
 /** Policy for private server-side sessions; never accepts browser identity data. */
 final class SessionPolicy
 {
+    public const TTL = 90 * 86400;
+
     public function __construct(private array $config)
     {
         $origin = $config['public_origin'] ?? null;
@@ -60,7 +62,7 @@ final class SessionPolicy
             || in_array($subject, $this->config['revoked_subjects'], true)
             || !is_int($session['issued_at'] ?? null) || !is_int($session['last_seen'] ?? null)
             || $session['issued_at'] > $session['last_seen'] || $session['last_seen'] > $now
-            || $now - $session['issued_at'] >= 30 * 86400
+            || $now - $session['issued_at'] >= self::TTL
             || !is_string($session['csrf'] ?? null) || !preg_match('/\A[a-f0-9]{64}\z/', $session['csrf'])) {
             $session = [];
             throw new RuntimeException('login_required');

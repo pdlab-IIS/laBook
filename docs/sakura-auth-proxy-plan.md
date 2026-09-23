@@ -8,7 +8,7 @@
 ブラウザ → さくらPHP（Slack認証・セッション・CSRF）→ HTTPS ngrok（さくら送信元IPv4のみ許可）→ RPi（HMAC検証）→ laBook。
 
 - `/labook/`が本番入口。旧`/L/...`は`/labook/L/...`へ転送する。
-- 未ログイン時はSlackへ自動遷移。JavaScript無効時だけ代替ボタンを表示する。
+- 未ログイン時はサービスの配色に合わせた案内画面を表示。「続行する」を押して標準Slack認証を開始する。ログイン先の表示とワークスペース文字列のコピーボタンを備え、自動開始しない。
 - 指定Slackワークスペースのteam IDを検証する。Google/Notion認証、Slack Connectへの許可拡張、コマンド入力は採用しない。
 - ルート画面のハンバーガーメニューに`Logout`を配置。他画面のメニューは`display: none`。
 - ログアウト後は完了画面で止まり、再ログインリンクから認証を開始する。
@@ -16,11 +16,13 @@
 ## 認証と中継
 
 - OIDCの署名、issuer、audience/azp、exp/iat、nonce、subject、at_hash、teamを検証。stateはブラウザ相関Cookieと照合し、5分以内に一度だけ消費する。
-- ログイン開始はCSRFフォームをCSP nonce付きスクリプトで自動POSTする。Origin検証のためログインHTMLは`Referrer-Policy: strict-origin`。
-- workspace-entry経路はSlack内部の転送方式を利用する。変更に備え、非公開設定で標準のselect-workspace経路に戻せる。クエリから方式を変更させない。
-- 認証セッションは発行から固定30日。DBにはopaque IDのハッシュだけを保存し、ログアウトで失効する。業務Usersと自動結合しない。
-- 30日内にSlack所属を再照会しない。毎要求で許可team、設定世代、失効対象を確認する。全失効は`session_generation`、個別拒否は`revoked_subjects`で管理。
-- CookieはSecure/HttpOnly、専用Path、Domainなし。preauthは1時間、OAuth相関は5分、認証済みは30日で分離する。
+- ログイン開始は「続行する」からCSRFフォームをPOSTする。CSP nonce付きスクリプトはワークスペース文字列のコピーにのみ使用する。Origin検証のためログインHTMLは`Referrer-Policy: strict-origin`。
+- 2026-09-23、Android ChromeでSlackアプリへ移動して戻れない問題の比較検証のため、非公開設定の`login_flow`だけを`workspace-entry`から標準の`select-workspace`へ切り替えた。旧設定は非公開領域にバックアップ済み。クエリから方式を変更させない。
+- 切替後、公開入口から標準認証URLへの遷移、callback先、state・nonce、相関Cookie、認可キャンセル時の拒否を確認済み。その後、利用者からAndroid Chromeでサービスを開けたとの報告を受領。標準経路を継続する。
+- 認証セッションは発行から固定90日。DBにはopaque IDのハッシュだけを保存し、ログアウトで失効する。業務Usersと自動結合しない。
+- 90日への変更は変更後のログインから適用する。既存セッションのDB・Cookieの期限は延長せず、次回ログイン時に90日で発行する。
+- 90日内にSlack所属を再照会しない。毎要求で許可team、設定世代、失効対象を確認する。全失効は`session_generation`、個別拒否は`revoked_subjects`で管理。
+- CookieはSecure/HttpOnly、専用Path、Domainなし。preauthは1時間、OAuth相関は5分、認証済みは90日で分離する。
 - 更新操作はOriginとCSRFを必須とし、自動再送しない。ブラウザCookieやAuthorizationをRPiへ転送しない。
 - PHPは固定HTTPS上流だけに接続し、TLS検証・IPv4固定・転送追跡禁止を適用。HMACはmethod、raw target、本文ハッシュ、時刻、nonce、主体を署名する。
 - RPiは全ルートで署名・固定Host・時刻±60秒・SQLite nonce再送防止を検証。本番用の鍵とnonce DBは試験から分離する。

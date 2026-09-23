@@ -7,7 +7,7 @@ use RuntimeException;
 /** Dedicated private SQLite database; no business Users, names, or Slack tokens. */
 final class AuthStore
 {
-    public const TTL = 30 * 86400;
+    public const TTL = SessionPolicy::TTL;
     private PDO $db;
     public function __construct(string $path)
     {

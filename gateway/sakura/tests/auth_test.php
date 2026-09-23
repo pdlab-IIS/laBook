@@ -22,7 +22,7 @@ try {
     }
     check((int)$db->query('SELECT COUNT(*) FROM auth_users')->fetchColumn()===0);
     $first=$store->establish($identity,'',$policy,$now);
-    check(strlen($first['token'])===64 && $first['expires_at']===$now+30*86400);
+    check(strlen($first['token'])===64 && $first['expires_at']===$now+90*86400);
     $row=$db->query('SELECT * FROM auth_sessions')->fetch(PDO::FETCH_ASSOC);
     check($row['session_hash']===hash('sha256',$first['token']));
     check(!str_contains(json_encode($row),'not-stored'));
@@ -39,9 +39,9 @@ try {
     check($store->session($second['token'],$policy,$now+3)['csrf']!==$row['csrf']);
     check((int)$db->query('SELECT COUNT(*) FROM auth_users')->fetchColumn()===1);
     rejected(fn()=>$store->session($first['token'],$policy,$now+3),'login_required');
-    check($store->session($second['token'],$policy,$now+3+30*86400-1)['subject']==='slack:TTEST:UTEST');
-    check((int)$db->query('SELECT expires_at FROM auth_sessions WHERE revoked_at IS NULL')->fetchColumn()===$now+3+30*86400);
-    rejected(fn()=>$store->session($second['token'],$policy,$now+3+30*86400),'login_required');
+    check($store->session($second['token'],$policy,$now+3+90*86400-1)['subject']==='slack:TTEST:UTEST');
+    check((int)$db->query('SELECT expires_at FROM auth_sessions WHERE revoked_at IS NULL')->fetchColumn()===$now+3+90*86400);
+    rejected(fn()=>$store->session($second['token'],$policy,$now+3+90*86400),'login_required');
     // A fresh fixture login also verifies logout/revocation without moving its clock backwards.
     $third=$store->establish($identity,'',$policy,$now+4);
     check($store->session($third['token'],$policy,$now+4)['subject']==='slack:TTEST:UTEST');
